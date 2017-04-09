@@ -28,11 +28,11 @@ pub enum BinOp {
     BAnd,
     BOr,
     BXor,
-    Cat,
 }
 
 #[derive(Debug)]
 pub enum UnOp {
+    Neg,
     Not,
     BNot,
 }
@@ -41,7 +41,9 @@ pub type Bxpr = Box<Expr>;
 
 #[derive(Debug)]
 pub enum Expr {
-    Num(i64),
+    Int(i64),
+    Float(f64),
+    Bool(bool),
     Ref(Iden),
     If(Bxpr, Bxpr, Bxpr),
     Block(LinkedList<Stmt>, Bxpr),

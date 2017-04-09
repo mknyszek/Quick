@@ -20,7 +20,7 @@ impl_rdp! {
 
         // Most everything else is an expression
         expr = _{
-            { ["("] ~ expr ~ [")"] | if_expr | block_expr | call_expr | assign_expr | unary_expr | snum | iden }
+            { ["("] ~ expr ~ [")"] | if_expr | block_expr | call_expr | assign_expr | unary_expr | float | snum | blit | iden }
             //chng = { cat }
             lgc  = { and | or }
             cond = { lt | gt | eq | ne }
@@ -55,15 +55,17 @@ impl_rdp! {
         //take_expr   = { iden ~ ["["] ~ expr ~ ["]"] }
         //slice_expr  = { iden ~ ["["] ~ expr ~ [":"] ~ expr ~ ["]"] }
         //alloc_expr  = { ["|"] ~ ["["] ~ expr ~ ["]"] ~ [">"] }
-        unary_expr  = { (not | bnot) ~ expr }
+        unary_expr  = { (not | bnot | minus) ~ expr }
 
         // Helper rules
         arg       = { expr }
         iden_list = _{ ["("] ~ (iden ~ ([","] ~ iden)*)? ~ [")"] }
 
-        // Atomic rules
-        iden       = @{ (['a'..'z'] | ['A'..'Z'] | ["_"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
-        snum       = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
+        // Literals and identifiers
+        iden  = @{ (['a'..'z'] | ['A'..'Z'] | ["_"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
+        snum  = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
+        float = { ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
+        blit  = { ["true"] | ["false"] }
 
         // Ignore whitespace
         whitespace = _{ [" "] | ["\n"] | ["\r"] | ["\t"] }
@@ -103,7 +105,9 @@ impl_rdp! {
         }
         _expr(&self) -> Expr {
             (&i: iden) => Expr::Ref(i.parse::<String>().unwrap()),
-            (&num: snum) => Expr::Num(num.parse::<i64>().unwrap()),
+            (&blit: blit) => Expr::Bool(blit.parse::<bool>().unwrap()),
+            (&num: snum) => Expr::Int(num.parse::<i64>().unwrap()),
+            (&num: float) => Expr::Float(num.parse::<f64>().unwrap()),
             (_: if_expr, pred: _expr(), then: _expr(), other: _expr()) => {
                 Expr::If(Box::new(pred), Box::new(then), Box::new(other))
             },
@@ -118,6 +122,7 @@ impl_rdp! {
             },
             (_: unary_expr, op, e: _expr()) => {
                 Expr::UnOp(match op.rule {
+                    Rule::minus => UnOp::Neg,
                     Rule::not => UnOp::Not,
                     Rule::bnot => UnOp::BNot,
                     _ => unreachable!(),
