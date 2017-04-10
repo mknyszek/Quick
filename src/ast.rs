@@ -1,19 +1,18 @@
-
 use std::collections::LinkedList;
 
-pub type Iden = String;
+use string_table::StringToken;
 
-pub type Program = LinkedList<Stmt>;
+pub type Ast = LinkedList<Stmt>;
 
 #[derive(Debug)]
 pub enum Stmt {
-    DefFunc(Iden, LinkedList<Iden>, Expr),
-    DefVar(Iden, Expr),
+    DefFunc(StringToken, LinkedList<StringToken>, Expr),
+    DefVar(StringToken, Expr),
     While(Expr, Expr),
     Expr(Expr),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BinOp {
     Add,
     Sub,
@@ -30,7 +29,7 @@ pub enum BinOp {
     BXor,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum UnOp {
     Neg,
     Not,
@@ -44,14 +43,14 @@ pub enum Expr {
     Int(i64),
     Float(f64),
     Bool(bool),
-    Ref(Iden),
+    Ref(StringToken),
     If(Bxpr, Bxpr, Bxpr),
     Block(LinkedList<Stmt>, Bxpr),
-    Call(Iden, LinkedList<Expr>),
-    Assign(Iden, Bxpr),
+    Call(StringToken, LinkedList<Expr>),
+    Assign(StringToken, Bxpr),
     //Alloc(Bxpr),
-    //Take(Iden, Bxpr),
-    //Slice(Iden, Bxpr, Bxpr),
+    //Take(StringToken, Bxpr),
+    //Slice(StringToken, Bxpr, Bxpr),
     UnOp(UnOp, Bxpr),
     BinOp(Bxpr, BinOp, Bxpr),
 }

@@ -1,5 +1,5 @@
-
 use ast::*;
+use string_table::{self, StringToken};
 use pest::prelude::*;
 
 use std::collections::LinkedList;
@@ -78,21 +78,21 @@ impl_rdp! {
     }
 
     process! {
-        parse(&self) -> Program {
+        parse(&self) -> Ast {
             (_: program, stmts: _stmt_list()) => stmts
         }
-        _iden_list(&self) -> LinkedList<Iden> {
+        _iden_list(&self) -> LinkedList<StringToken> {
             (&head: iden, mut rest: _iden_list()) => {
-                rest.push_front(head.parse::<String>().unwrap());
+                rest.push_front(string_table::insert(head));
                 rest
             },
             () => LinkedList::new()
         }
         _stmt(&self) -> Stmt {
             (_: func_stmt, &name: iden, params: _iden_list(), body: _expr()) => {
-                Stmt::DefFunc(name.parse::<String>().unwrap(), params, body)
+                Stmt::DefFunc(string_table::insert(name), params, body)
             },
-            (_: var_stmt, &i: iden, e: _expr()) => Stmt::DefVar(i.parse::<String>().unwrap(), e),
+            (_: var_stmt, &i: iden, e: _expr()) => Stmt::DefVar(string_table::insert(i), e),
             (_: while_stmt, pred: _expr(), body: _expr()) => Stmt::While(pred, body),
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
         }
@@ -104,10 +104,14 @@ impl_rdp! {
             () => LinkedList::new()
         }
         _expr(&self) -> Expr {
-            (&i: iden) => Expr::Ref(i.parse::<String>().unwrap()),
+            (&i: iden) => Expr::Ref(string_table::insert(i)),
             (&blit: blit) => Expr::Bool(blit.parse::<bool>().unwrap()),
             (&num: snum) => Expr::Int(num.parse::<i64>().unwrap()),
-            (&num: float) => Expr::Float(num.parse::<f64>().unwrap()),
+            (&num: float) => {
+                // Truncate suffix "f" before parse
+                let num_len = num.len();
+                Expr::Float(num[0..num_len-1].parse::<f64>().unwrap())
+            },
             (_: if_expr, pred: _expr(), then: _expr(), other: _expr()) => {
                 Expr::If(Box::new(pred), Box::new(then), Box::new(other))
             },
@@ -115,10 +119,10 @@ impl_rdp! {
                 Expr::Block(stmts, Box::new(result))
             },
             (_: call_expr, &func: iden, args: _arg_list()) => {
-                Expr::Call(func.parse::<String>().unwrap(), args)
+                Expr::Call(string_table::insert(func), args)
             },
             (_: assign_expr, &var: iden, value: _expr()) => {
-                Expr::Assign(var.parse::<String>().unwrap(), Box::new(value))
+                Expr::Assign(string_table::insert(var), Box::new(value))
             },
             (_: unary_expr, op, e: _expr()) => {
                 Expr::UnOp(match op.rule {

@@ -2,8 +2,10 @@
 #[macro_use]
 extern crate pest;
 
+mod string_table;
 mod ast;
 mod parser;
+mod backend;
 
 use parser::Rdp;
 
@@ -39,5 +41,8 @@ fn main() {
         }
         println!();
     }
-    println!("{:?}", parser.parse());
+    let ast = parser.parse();
+    println!("{:?}", ast);
+    let program = backend::compiler::compile(&ast);
+    println!("{:?}", program);
 }
