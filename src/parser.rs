@@ -10,12 +10,13 @@ impl_rdp! {
         program = { soi ~ stmt* ~ eoi }
 
         // Statements end with semi-colon
-        stmt = { func_stmt | while_stmt | var_stmt | expr_stmt | print_stmt }
+        stmt = { func_stmt | while_stmt | var_stmt | print_stmt | block_stmt | expr_stmt }
 
         // Types of statements
         func_stmt  = { ["func"] ~ iden ~ iden_list ~ (expr ~ [";"] | block_expr) }
         var_stmt   = { ["var"] ~ iden ~ ["="] ~ expr ~ [";"] }
-        while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ (expr ~ [";"] | block_expr) }
+        block_stmt = { ["{"] ~ stmt* ~ ["}"] }
+        while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
         print_stmt = { ["print"] ~ ["\""] ~ strng ~ ["\""] ~ (["%"] ~ ["("] ~ (arg ~ ([","] ~ arg)*)? ~ [")"])? ~ [";"] }
 
@@ -97,7 +98,10 @@ impl_rdp! {
                 Stmt::DefFunc(string_table::insert(name), params, body)
             },
             (_: var_stmt, &i: iden, e: _expr()) => Stmt::DefVar(string_table::insert(i), e),
-            (_: while_stmt, pred: _expr(), body: _expr()) => Stmt::While(pred, body),
+            (_: block_stmt, stmts: _stmt_list()) => {
+                Stmt::Block(stmts)
+            },
+            (_: while_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::While(pred, Box::new(body)),
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
             (_: print_stmt, &s: strng, args: _arg_list()) => {
                 Stmt::Print(string_table::insert(s), args) 

@@ -8,7 +8,8 @@ pub type Ast = LinkedList<Stmt>;
 pub enum Stmt {
     DefFunc(StringToken, LinkedList<StringToken>, Expr),
     DefVar(StringToken, Expr),
-    While(Expr, Expr),
+    Block(LinkedList<Stmt>),
+    While(Expr, Box<Stmt>),
     Expr(Expr),
     Print(StringToken, LinkedList<Expr>),
 }

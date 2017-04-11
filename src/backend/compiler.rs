@@ -296,6 +296,13 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             func.put_local(offset);
             func.discard();
         },
+        Stmt::Block(ref stmts) => {
+            env.push_scope();
+            for s in stmts.iter() {
+                compile_stmt(s, fns, env)?;
+            }
+            env.pop_scope();
+        },
         Stmt::While(ref p, ref b) => {
             let start_loop;
             let end_loop;
@@ -311,10 +318,9 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 func.op1(UnOp::Not);
                 func.branch(end_loop);
             }
-            compile_expr(b, fns, env)?;
+            compile_stmt(b.borrow(), fns, env)?;
             {
                 let func = fns.current();
-                func.discard();
                 func.jump(start_loop);
                 func.bind(end_loop);
             }

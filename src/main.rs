@@ -35,7 +35,7 @@ fn main() {
     if !parser.program() || !parser.end() {
         let (rules, pos) = parser.expected();
         print_line_from_pos(&buffer, pos);
-        print!("[Error] Expected one of: ");
+        print!("[Parsing Error] Expected one of: ");
         for rule in rules.iter() {
             print!("{:?} ", rule);
         }
@@ -45,6 +45,6 @@ fn main() {
     let ast = parser.parse();
     match backend::compiler::compile(&ast) {
         Ok(program) => backend::interpreter::interpret(program),
-        Err(err) => println!("Compile Error: {}", err),
+        Err(err) => println!("[Compile Error] {}", err),
     }
 }
