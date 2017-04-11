@@ -63,6 +63,7 @@ impl Function {
     fn get_local(&mut self, o: usize)    { self.bc.push(Bytecode::GetLocal(o));        }
     fn jump(&mut self, o: usize)         { self.bc.push(Bytecode::Jump(o as isize));   }
     fn branch(&mut self, o: usize)       { self.bc.push(Bytecode::Branch(o as isize)); }
+    fn print(&mut self, st:StringToken, n: usize) { self.bc.push(Bytecode::Print(st, n)); }
 
     fn label(&mut self) -> LabelToken { 
         self.labels.push(None);
@@ -92,14 +93,14 @@ impl Function {
             let bcopy = (*b).clone();
             match bcopy {
                 Bytecode::Branch(o) => *b = match self.labels[o as usize] {
-                    Some(o) => Bytecode::Branch((o as isize) - i),
+                    Some(o) => Bytecode::Branch((o as isize) - i + 1),
                     None => panic!("Internal Error: Found unbound label!"),
                 },
                 Bytecode::Jump(o) => *b = match self.labels[o as usize] {
-                    Some(o) => Bytecode::Jump((o as isize) - i),
+                    Some(o) => Bytecode::Jump((o as isize) - i + 1),
                     None => panic!("Internal Error: Found unbound label!"),
                 },
-                _ => continue,
+                _ => (),
             }
             i += 1;
         }
@@ -168,6 +169,7 @@ impl LocalEnvironment {
 
     fn push_scope(&mut self) {
         self.ids.push_scope();
+        self.id_count.push(0);
     }
 
     fn pop_scope(&mut self) {
@@ -292,6 +294,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             let offset = env.add_id(name)?;
             let func = fns.current();
             func.put_local(offset);
+            func.discard();
         },
         Stmt::While(ref p, ref b) => {
             let start_loop;
@@ -305,11 +308,13 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             compile_expr(p, fns, env)?;
             {
                 let func = fns.current();
+                func.op1(UnOp::Not);
                 func.branch(end_loop);
             }
             compile_expr(b, fns, env)?;
             {
                 let func = fns.current();
+                func.discard();
                 func.jump(start_loop);
                 func.bind(end_loop);
             }
@@ -319,6 +324,13 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             let func = fns.current();
             func.discard();
         },
+        Stmt::Print(lit, ref args) => {
+            for a in args.iter() {
+                compile_expr(a, fns, env)?;
+            }
+            let func = fns.current();
+            func.print(lit, args.len());
+        }
     }
     Ok(())
 }

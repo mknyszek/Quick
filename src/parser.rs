@@ -10,20 +10,21 @@ impl_rdp! {
         program = { soi ~ stmt* ~ eoi }
 
         // Statements end with semi-colon
-        stmt = { func_stmt | while_stmt | var_stmt | expr_stmt }
+        stmt = { func_stmt | while_stmt | var_stmt | expr_stmt | print_stmt }
 
         // Types of statements
         func_stmt  = { ["func"] ~ iden ~ iden_list ~ (expr ~ [";"] | block_expr) }
         var_stmt   = { ["var"] ~ iden ~ ["="] ~ expr ~ [";"] }
         while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ (expr ~ [";"] | block_expr) }
         expr_stmt  = { expr ~ [";"] }
+        print_stmt = { ["print"] ~ ["\""] ~ strng ~ ["\""] ~ (["%"] ~ ["("] ~ (arg ~ ([","] ~ arg)*)? ~ [")"])? ~ [";"] }
 
         // Most everything else is an expression
         expr = _{
             { ["("] ~ expr ~ [")"] | if_expr | block_expr | call_expr | assign_expr | unary_expr | float | snum | blit | iden }
             //chng = { cat }
             lgc  = { and | or }
-            cond = { lt | gt | eq | ne }
+            cond = { le | ge | lt | gt | eq | ne }
             sum  = { plus  | minus }
             prod = { times | slash }
             bit  = { band | bor | bxor }
@@ -36,6 +37,8 @@ impl_rdp! {
         slash =  { ["/"] }
         lt    =  { ["<"] }
         gt    =  { [">"] }
+        le    =  { ["<="] }
+        ge    =  { [">="] }
         eq    =  { ["=="] }
         ne    =  { ["!="] }
         and   =  { ["and"] }
@@ -66,6 +69,7 @@ impl_rdp! {
         snum  = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
         float = { ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
         blit  = { ["true"] | ["false"] }
+        strng = @{ (!(["\""]) ~ any)* }
 
         // Ignore whitespace
         whitespace = _{ [" "] | ["\n"] | ["\r"] | ["\t"] }
@@ -95,6 +99,9 @@ impl_rdp! {
             (_: var_stmt, &i: iden, e: _expr()) => Stmt::DefVar(string_table::insert(i), e),
             (_: while_stmt, pred: _expr(), body: _expr()) => Stmt::While(pred, body),
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
+            (_: print_stmt, &s: strng, args: _arg_list()) => {
+                Stmt::Print(string_table::insert(s), args) 
+            },
         }
         _stmt_list(&self) -> LinkedList<Stmt> {
             (_: stmt, head: _stmt(), mut rest: _stmt_list()) => {
@@ -143,6 +150,8 @@ impl_rdp! {
                 Expr::BinOp(Box::new(e1), match op.rule {
                     Rule::lt => BinOp::Lt,
                     Rule::gt => BinOp::Gt,
+                    Rule::le => BinOp::Le,
+                    Rule::ge => BinOp::Ge,
                     Rule::eq => BinOp::Eq,
                     Rule::ne => BinOp::Ne,
                     _ => unreachable!(),

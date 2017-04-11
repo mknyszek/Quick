@@ -40,9 +40,11 @@ fn main() {
             print!("{:?} ", rule);
         }
         println!();
+        return;
     }
     let ast = parser.parse();
-    println!("{:?}", ast);
-    let program = backend::compiler::compile(&ast);
-    println!("{:?}", program);
+    match backend::compiler::compile(&ast) {
+        Ok(program) => backend::interpreter::interpret(program),
+        Err(err) => println!("Compile Error: {}", err),
+    }
 }

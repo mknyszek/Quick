@@ -10,6 +10,7 @@ pub enum Stmt {
     DefVar(StringToken, Expr),
     While(Expr, Expr),
     Expr(Expr),
+    Print(StringToken, LinkedList<Expr>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -20,6 +21,8 @@ pub enum BinOp {
     Div,
     Lt,
     Gt,
+    Le,
+    Ge,
     Eq,
     Ne,
     And,

@@ -1,4 +1,5 @@
 use ast::{BinOp, UnOp};
+use string_table::StringToken;
 
 #[derive(Debug, Clone)]
 pub enum Bytecode {
@@ -14,6 +15,7 @@ pub enum Bytecode {
     GetLocal(usize),
     Jump(isize),
     Branch(isize),
+    Print(StringToken, usize),
     //Alloc(),
     //Slice(),
 }
