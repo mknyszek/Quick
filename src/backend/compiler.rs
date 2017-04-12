@@ -325,6 +325,11 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 func.bind(end_loop);
             }
         },
+        Stmt::Return(ref e) => {
+            compile_expr(e, fns, env)?;
+            let func = fns.current();
+            func.return_(env.locals());
+        },
         Stmt::Expr(ref e) => {
             compile_expr(e, fns, env)?;
             let func = fns.current();

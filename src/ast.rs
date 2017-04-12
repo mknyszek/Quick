@@ -11,6 +11,7 @@ pub enum Stmt {
     Block(LinkedList<Stmt>),
     While(Expr, Box<Stmt>),
     Expr(Expr),
+    Return(Expr),
     Print(StringToken, LinkedList<Expr>),
 }
 

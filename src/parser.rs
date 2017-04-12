@@ -10,7 +10,7 @@ impl_rdp! {
         program = { soi ~ stmt* ~ eoi }
 
         // Statements end with semi-colon
-        stmt = { func_stmt | while_stmt | var_stmt | print_stmt | block_stmt | expr_stmt }
+        stmt = { func_stmt | while_stmt | var_stmt | print_stmt | block_stmt | ret_stmt | expr_stmt }
 
         // Types of statements
         func_stmt  = { ["func"] ~ iden ~ iden_list ~ (expr ~ [";"] | block_expr) }
@@ -19,6 +19,7 @@ impl_rdp! {
         while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
         print_stmt = { ["print"] ~ ["\""] ~ strng ~ ["\""] ~ (["%"] ~ ["("] ~ (arg ~ ([","] ~ arg)*)? ~ [")"])? ~ [";"] }
+        ret_stmt   = { ["ret"] ~ expr ~ [";"] }
 
         // Most everything else is an expression
         expr = _{
@@ -102,6 +103,7 @@ impl_rdp! {
                 Stmt::Block(stmts)
             },
             (_: while_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::While(pred, Box::new(body)),
+            (_: ret_stmt, value: _expr()) => Stmt::Return(value),
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
             (_: print_stmt, &s: strng, args: _arg_list()) => {
                 Stmt::Print(string_table::insert(s), args) 

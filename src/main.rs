@@ -1,6 +1,7 @@
 #![recursion_limit = "200"]
 #[macro_use]
 extern crate pest;
+extern crate libquantum;
 
 mod string_table;
 mod ast;

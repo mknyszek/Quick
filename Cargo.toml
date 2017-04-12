@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["Michael Anthony Knyszek <mknyszek@gmail.com>"]
 
 [dependencies]
-pest = "0.4.1"
+pest = "0.4"
+libquantum = "0.1.1"
