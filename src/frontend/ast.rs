@@ -26,7 +26,7 @@ pub enum Expr {
     Ref(StringToken),
     If(Bxpr, Bxpr, Bxpr),
     Block(LinkedList<Stmt>, Bxpr),
-    Call(StringToken, LinkedList<Expr>),
+    Call(Bxpr, LinkedList<Expr>),
     Assign(StringToken, Bxpr),
     Get(StringToken, Bxpr),
     Put(StringToken, Bxpr, Bxpr),

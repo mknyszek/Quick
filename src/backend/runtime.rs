@@ -1,3 +1,5 @@
+use backend::bytecode::FunctionToken;
+
 use std::cell::RefCell;
 use std::ops::{Add, Sub, Mul, Div};
 use std::rc::Rc;
@@ -12,6 +14,7 @@ pub enum Value {
     Int(i64),
     Bool(bool),
     Float(f64),
+    Func(FunctionToken),
     Array(ArrayObject),
     //QReg(),
 }
@@ -129,19 +132,10 @@ impl Value {
                 Value::Bool(_) => CatOperation::PushBack,
                 _ => panic!("Cat operation applied to non-user type"),
             },
-            Value::Int(_) => match other {
-                Value::Array(_) => CatOperation::PushFront,
-                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
-                Value::Empty => panic!("Shouldn't operate on Empty"),
-                _ => CatOperation::NewArray,
-            },
-            Value::Float(_) => match other {
-                Value::Array(_) => CatOperation::PushFront,
-                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
-                Value::Empty => panic!("Shouldn't operate on Empty"),
-                _ => CatOperation::NewArray,
-            },
-            Value::Bool(_) => match other {
+            Value::Int(_) 
+            | Value::Float(_) 
+            | Value::Bool(_) 
+            | Value::Func(_) => match other {
                 Value::Array(_) => CatOperation::PushFront,
                 Value::Addr(_) => panic!("Shouldn't operate on Addr"),
                 Value::Empty => panic!("Shouldn't operate on Empty"),
@@ -203,6 +197,13 @@ impl Value {
             Value::Bool(v) => v,
             Value::Int(v) => if v != 0 { true } else { false },
             _ => panic!("Invalid cast of {:?} to Bool", self),
+        }
+    }
+
+    pub fn as_func(self) -> FunctionToken {
+        match self {
+            Value::Func(ft) => ft,
+            _ => panic!("Invalid cast of {:?} to Func", self),
         }
     }
 

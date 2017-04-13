@@ -25,7 +25,7 @@ impl_rdp! {
 
         // Most everything else is an expression
         expr = _{
-            { ["("] ~ expr ~ [")"] | special | lit | iden }
+            { call_expr | ["("] ~ expr ~ [")"] | special | lit | iden }
             chng = { cat }
             lgc  = { and | or }
             cond = { le | ge | lt | gt | eq | ne }
@@ -35,7 +35,7 @@ impl_rdp! {
         }
 
         lit     = _{ float | snum | blit }
-        special = _{ if_expr | block_expr | call_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
+        special = _{ if_expr | block_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
 
         // Operators for matching later
         plus  =  { ["+"] }
@@ -60,7 +60,7 @@ impl_rdp! {
         // Expressions to match
         if_expr     = { ["if"] ~ ["("] ~ expr ~ [")"] ~ expr ~ ["else"] ~ expr }
         block_expr  = { ["{"] ~ stmt* ~ expr ~ ["}"] }
-        call_expr   = { iden ~ ["("] ~ arg_list ~ [")"] }
+        call_expr   = { caller ~ ["("] ~ arg_list ~ [")"] }
         assign_expr = { iden ~ ["="] ~ expr }
         get_expr    = { iden ~ ["["] ~ expr ~ ["]"] }
         put_expr    = { iden ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
@@ -72,6 +72,7 @@ impl_rdp! {
         arg       = { expr }
         iden_list = _{ ["("] ~ (iden ~ ([","] ~ iden)*)? ~ [")"] }
         arg_list  = _{ (arg ~ ([","] ~ arg)*)? }
+        caller    = _{ iden | ["("] ~ expr ~ [")"] }
 
         // Literals and identifiers
         iden  = @{ (['a'..'z'] | ['A'..'Z'] | ["_"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
@@ -138,8 +139,8 @@ impl_rdp! {
             (_: block_expr, stmts: _stmt_list(), result: _expr()) => {
                 Expr::Block(stmts, Box::new(result))
             },
-            (_: call_expr, &func: iden, args: _arg_list()) => {
-                Expr::Call(string_table::insert(func), args)
+            (_: call_expr, func: _expr(), args: _arg_list()) => {
+                Expr::Call(Box::new(func), args)
             },
             (_: assign_expr, &var: iden, value: _expr()) => {
                 Expr::Assign(string_table::insert(var), Box::new(value))

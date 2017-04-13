@@ -16,7 +16,6 @@ macro_rules! return_error {
     }}
 }
 
-type FunctionToken = usize;
 type LabelToken = usize;
 
 #[derive(Debug)]
@@ -42,15 +41,16 @@ impl Function {
     fn int(&mut self, v: i64)            { self.bc.push(Bytecode::Int(v));             } 
     fn float(&mut self, v: f64)          { self.bc.push(Bytecode::Float(v));           } 
     fn bool(&mut self, v: bool)          { self.bc.push(Bytecode::Bool(v));            } 
+    fn func(&mut self, f: FunctionToken) { self.bc.push(Bytecode::Func(f));            }
+    fn array(&mut self, len: usize)      { self.bc.push(Bytecode::Array(len));         }
     fn op3(&mut self, op: TriOp)         { self.bc.push(Bytecode::Op3(op));            } 
     fn op2(&mut self, op: BinOp)         { self.bc.push(Bytecode::Op2(op));            } 
     fn op1(&mut self, op: UnOp)          { self.bc.push(Bytecode::Op1(op));            } 
-    fn call(&mut self, f: FunctionToken) { self.bc.push(Bytecode::Call(f));            } 
+    fn call(&mut self)                   { self.bc.push(Bytecode::Call);               } 
     fn return_(&mut self, o: usize)      { self.bc.push(Bytecode::Return(o));          }
     fn discard(&mut self)                { self.bc.push(Bytecode::Discard);            }
     fn put_local(&mut self, o: usize)    { self.bc.push(Bytecode::PutLocal(o));        }
     fn get_local(&mut self, o: usize)    { self.bc.push(Bytecode::GetLocal(o));        }
-    fn array(&mut self, len: usize)      { self.bc.push(Bytecode::Array(len));         }
     fn jump(&mut self, o: usize)         { self.bc.push(Bytecode::Jump(o as isize));   }
     fn branch(&mut self, o: usize)       { self.bc.push(Bytecode::Branch(o as isize)); }
     fn print(&mut self, st:StringToken, n: usize) { self.bc.push(Bytecode::Print(st, n)); }
@@ -343,7 +343,10 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
         Expr::Bool(b) => fns.current().bool(b),
         Expr::Ref(id) => match env.find(id) {
             Some(offset) => fns.current().get_local(offset),
-            None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
+            None => match fns.lookup(id) {
+                Some(ft) => fns.current().func(ft),
+                None => return_error!("Identifier '{}' is not defined", string_table::get(id)),
+            },
         },
         Expr::If(ref p, ref t, ref e) => {
             let then;
@@ -378,14 +381,12 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
             compile_expr(e.borrow(), fns, env)?;
             env.pop_scope();
         },
-        Expr::Call(id, ref args) => {
+        Expr::Call(ref f, ref args) => {
             for a in args.iter() {
                 compile_expr(a, fns, env)?;
             }
-            match fns.lookup(id) {
-                Some(ft) => fns.current().call(ft),
-                None => return_error!("Function '{}' is not defined", string_table::get(id)),
-            }
+            compile_expr(f.borrow(), fns, env)?;
+            fns.current().call();
         },
         Expr::Assign(id, ref e) => {
             compile_expr(e.borrow(), fns, env)?;

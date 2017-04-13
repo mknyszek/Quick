@@ -9,6 +9,8 @@ pub struct Program {
     pub call_table: Vec<FunctionEntry>
 }
 
+pub type FunctionToken = usize;
+
 #[derive(Debug)]
 pub struct FunctionEntry {
     pub addr: usize,
@@ -21,11 +23,12 @@ pub enum Bytecode {
     Int(i64),
     Float(f64),
     Bool(bool),
+    Func(FunctionToken),
     Array(usize),
     Op3(TriOp),
     Op2(BinOp),
     Op1(UnOp),
-    Call(usize),
+    Call,
     Discard,
     Return(usize),
     PutLocal(usize),

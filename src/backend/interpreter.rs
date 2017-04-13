@@ -35,6 +35,10 @@ pub fn interpret(program: Program) {
                 stack.push(a0);
                 a0 = Value::Bool(v);
             },
+            Bytecode::Func(ft) => {
+                stack.push(a0);
+                a0 = Value::Func(ft);
+            },
             Bytecode::Array(len) => {
                 let mut v = Vec::with_capacity(len);
                 let sp = stack.len();
@@ -83,8 +87,8 @@ pub fn interpret(program: Program) {
                     UnOp::BNot => a0 = a0.bnot(),
                 }
             },
-            Bytecode::Call(ft) => {
-                stack.push(a0);
+            Bytecode::Call => {
+                let ft = a0.as_func();
                 let ref fe = program.call_table[ft];
                 for _ in 0..(fe.locals - fe.arity) {
                     stack.push(Value::Empty);
