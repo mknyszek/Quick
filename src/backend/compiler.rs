@@ -1,6 +1,7 @@
-use ast::*;
-use backend::bytecodes::*;
-use string_table::{self, StringToken};
+use frontend::ast::*;
+use backend::bytecode::*;
+use util::ops::*;
+use util::string_table::{self, StringToken};
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
@@ -13,19 +14,6 @@ macro_rules! return_error {
         write!(s, $($i),*).ok().unwrap();
         return Err(s);
     }}
-}
-
-#[derive(Debug)]
-pub struct FunctionEntry {
-    pub addr: usize,
-    pub arity: usize,
-    pub locals: usize
-}
-
-#[derive(Debug)]
-pub struct Program {
-    pub instructions: Vec<Bytecode>,
-    pub call_table: Vec<FunctionEntry>
 }
 
 type FunctionToken = usize;
@@ -54,6 +42,7 @@ impl Function {
     fn int(&mut self, v: i64)            { self.bc.push(Bytecode::Int(v));             } 
     fn float(&mut self, v: f64)          { self.bc.push(Bytecode::Float(v));           } 
     fn bool(&mut self, v: bool)          { self.bc.push(Bytecode::Bool(v));            } 
+    fn op3(&mut self, op: TriOp)         { self.bc.push(Bytecode::Op3(op));            } 
     fn op2(&mut self, op: BinOp)         { self.bc.push(Bytecode::Op2(op));            } 
     fn op1(&mut self, op: UnOp)          { self.bc.push(Bytecode::Op1(op));            } 
     fn call(&mut self, f: FunctionToken) { self.bc.push(Bytecode::Call(f));            } 
@@ -61,6 +50,7 @@ impl Function {
     fn discard(&mut self)                { self.bc.push(Bytecode::Discard);            }
     fn put_local(&mut self, o: usize)    { self.bc.push(Bytecode::PutLocal(o));        }
     fn get_local(&mut self, o: usize)    { self.bc.push(Bytecode::GetLocal(o));        }
+    fn array(&mut self, len: usize)      { self.bc.push(Bytecode::Array(len));         }
     fn jump(&mut self, o: usize)         { self.bc.push(Bytecode::Jump(o as isize));   }
     fn branch(&mut self, o: usize)       { self.bc.push(Bytecode::Branch(o as isize)); }
     fn print(&mut self, st:StringToken, n: usize) { self.bc.push(Bytecode::Print(st, n)); }
@@ -403,6 +393,30 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 Some(offset) => fns.current().put_local(offset),
                 None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
             }
+        },
+        Expr::Get(id, ref idx) => {
+            match env.find(id) {
+                Some(offset) => fns.current().get_local(offset),
+                None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
+            }
+            compile_expr(idx.borrow(), fns, env)?;
+            fns.current().op2(BinOp::Get);
+        },
+        Expr::Put(id, ref idx, ref e) => {
+            match env.find(id) {
+                Some(offset) => fns.current().get_local(offset),
+                None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
+            }
+            compile_expr(idx.borrow(), fns, env)?;
+            compile_expr(e.borrow(), fns, env)?;
+            fns.current().op3(TriOp::Put);
+        },
+        Expr::Array(ref args) => {
+            for a in args.iter() {
+                compile_expr(a, fns, env)?;
+            }
+            let func = fns.current();
+            func.array(args.len());
         },
         Expr::UnOp(op, ref e) => {
             compile_expr(e.borrow(), fns, env)?;

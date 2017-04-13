@@ -1,6 +1,7 @@
 use std::collections::LinkedList;
 
-use string_table::StringToken;
+use util::ops::{UnOp, BinOp};
+use util::string_table::StringToken;
 
 pub type Ast = LinkedList<Stmt>;
 
@@ -15,32 +16,6 @@ pub enum Stmt {
     Print(StringToken, LinkedList<Expr>),
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum BinOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Lt,
-    Gt,
-    Le,
-    Ge,
-    Eq,
-    Ne,
-    And,
-    Or,
-    BAnd,
-    BOr,
-    BXor,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum UnOp {
-    Neg,
-    Not,
-    BNot,
-}
-
 pub type Bxpr = Box<Expr>;
 
 #[derive(Debug)]
@@ -53,9 +28,10 @@ pub enum Expr {
     Block(LinkedList<Stmt>, Bxpr),
     Call(StringToken, LinkedList<Expr>),
     Assign(StringToken, Bxpr),
-    //Alloc(Bxpr),
-    //Take(StringToken, Bxpr),
-    //Slice(StringToken, Bxpr, Bxpr),
+    Get(StringToken, Bxpr),
+    Put(StringToken, Bxpr, Bxpr),
+    Array(LinkedList<Expr>),
+    //QAlloc(Bxpr),
     UnOp(UnOp, Bxpr),
     BinOp(Bxpr, BinOp, Bxpr),
 }

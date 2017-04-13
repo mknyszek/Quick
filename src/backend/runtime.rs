@@ -1,12 +1,18 @@
+use std::cell::RefCell;
 use std::ops::{Add, Sub, Mul, Div};
+use std::rc::Rc;
+use std::vec::Vec;
 
-#[derive(Debug, Clone, Copy)]
+type ArrayObject = Rc<RefCell<Vec<Value>>>;
+
+#[derive(Debug, Clone)]
 pub enum Value {
     Empty,
     Addr(usize),
     Int(i64),
     Bool(bool),
     Float(f64),
+    Array(ArrayObject),
     //QReg(),
 }
 
@@ -88,6 +94,21 @@ impl Value {
         Value::Int(!self.as_int())
     }
 
+    pub fn get(self, index: Value) -> Value {
+        match self {
+            Value::Array(v) => (v.borrow())[index.as_int() as usize].clone(),
+            _ => panic!("Index operation only available for Array"),
+        }
+    }
+
+    pub fn put(self, index: Value, value: Value) -> Value {
+        match self {
+            Value::Array(v) => (v.borrow_mut())[index.as_int() as usize] = value.clone(),
+            _ => panic!("Index operation only available for Array"),
+        }
+        value
+    }
+
     pub fn as_int(self) -> i64 {
         match self {
             Value::Int(v) => v,
@@ -125,7 +146,49 @@ impl Value {
             Value::Bool(v) => v.to_string(),
             Value::Int(v) => v.to_string(),
             Value::Float(v) => v.to_string(),
+            Value::Array(v) => {
+                let mut out = String::new();
+                out.push('[');
+                out.push(' ');
+                for i in v.borrow().iter() {
+                    out.push_str(&(i.clone().as_string())[..]);
+                    out.push(' ');
+                }
+                out.push(']');
+                out
+            },
             _ => panic!("String representation not available for other types"),
         }
     }
+}
+
+pub fn printf(fmt: &String, args: &[Value]) {
+    let mut out: Vec<char> = Vec::with_capacity(fmt.len());
+    let mut arg = 0;
+    let mut escaping = false;
+    for c in fmt.chars() {
+        if escaping {
+            match c {
+                'n' => out.push('\n'),
+                'r' => out.push('\r'),
+                't' => out.push('\t'),
+                _ => out.push(c),
+            }
+            escaping = false;
+        } else {
+            match c {
+                // TODO: Verify that not too few args
+                '@' => {
+                    for c in args[arg].clone().as_string().chars() {
+                        out.push(c);
+                    }
+                    arg += 1;
+                },
+                '\\' => escaping = true,
+                _ => out.push(c),
+            }
+        }
+    }
+    let s: String = out.into_iter().collect();
+    print!("{}", s);
 }

@@ -3,12 +3,9 @@
 extern crate pest;
 extern crate libquantum;
 
-mod string_table;
-mod ast;
-mod parser;
+mod util;
+mod frontend;
 mod backend;
-
-use parser::Rdp;
 
 use pest::prelude::*;
 
@@ -32,7 +29,7 @@ fn print_line_from_pos(program: &String, pos: usize) {
 fn main() {
     let mut buffer = String::new();
     let _ = io::stdin().read_to_string(&mut buffer).unwrap();
-    let mut parser = Rdp::new(StringInput::new(buffer.as_str()));
+    let mut parser = frontend::parser::Rdp::new(StringInput::new(buffer.as_str()));
     if !parser.program() || !parser.end() {
         let (rules, pos) = parser.expected();
         print_line_from_pos(&buffer, pos);

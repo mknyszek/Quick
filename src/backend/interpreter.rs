@@ -1,11 +1,12 @@
-use ast::{BinOp, UnOp};
-use string_table;
+use util::ops::*;
+use util::string_table;
 
-use backend::bytecodes::*;
-use backend::compiler::Program;
-use backend::value::Value;
+use backend::bytecode::*;
+use backend::runtime::{self, Value};
 
 use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::vec::Vec;
 
 pub fn interpret(program: Program) {
@@ -34,6 +35,25 @@ pub fn interpret(program: Program) {
                 stack.push(a0);
                 a0 = Value::Bool(v);
             },
+            Bytecode::Array(len) => {
+                let mut v = Vec::with_capacity(len);
+                let sp = stack.len();
+                for i in (0..len-1).rev() {
+                    v.push(stack[sp-1-i].clone());
+                }
+                v.push(a0);
+                for _ in 0..len-1 {
+                    let _ = stack.pop().unwrap();
+                }
+                a0 = Value::Array(Rc::new(RefCell::new(v)));
+            },
+            Bytecode::Op3(op) => {
+                let t0 = stack.pop().unwrap();
+                let t1 = stack.pop().unwrap();
+                match op {
+                    TriOp::Put => a0 = t1.put(t0, a0),
+                }
+            },
             Bytecode::Op2(op) => {
                 let t0 = stack.pop().unwrap();
                 match op {
@@ -52,6 +72,7 @@ pub fn interpret(program: Program) {
                     BinOp::BAnd => a0 = t0.band(a0),
                     BinOp::BOr => a0 = t0.bor(a0),
                     BinOp::BXor => a0 = t0.bxor(a0),
+                    BinOp::Get => a0 = t0.get(a0),
                 }
             },
             Bytecode::Op1(op) => {
@@ -84,12 +105,12 @@ pub fn interpret(program: Program) {
                 continue;
             },
             Bytecode::PutLocal(index) => {
-                stack[fp + index] = a0;
+                stack[fp + index] = a0.clone();
                 //a0 = stack.pop().unwrap();
             },
             Bytecode::GetLocal(index) => {
                 stack.push(a0);
-                a0 = stack[fp + index];
+                a0 = stack[fp + index].clone();
             },
             Bytecode::Jump(offset) => {
                 pc = (pc as isize + offset) as usize;
@@ -104,46 +125,15 @@ pub fn interpret(program: Program) {
                 }
             },
             Bytecode::Print(fmt, nargs) => {
-                let mut args = Vec::with_capacity(nargs);
-                args.push(a0);
-                for _ in 0..(nargs-1) {
-                    args.push(stack.pop().unwrap());
+                stack.push(a0);
+                let sp = stack.len();
+                runtime::printf(string_table::get(fmt).borrow(), &stack[sp-nargs..sp]);
+                for _ in 0..nargs {
+                    stack.pop().unwrap();
                 }
-                printf(string_table::get(fmt).borrow(), args);
                 a0 = stack.pop().unwrap();
             }
         }
         pc += 1;
     }
-}
-
-fn printf(fmt: &String, args: Vec<Value>) {
-    let mut out: Vec<char> = Vec::with_capacity(fmt.len());
-    let mut arg = 0;
-    let mut escaping = false;
-    for c in fmt.chars() {
-        if escaping {
-            match c {
-                'n' => out.push('\n'),
-                'r' => out.push('\r'),
-                't' => out.push('\t'),
-                _ => out.push(c),
-            }
-            escaping = false;
-        } else {
-            match c {
-                // TODO: Verify that not too few args
-                '@' => {
-                    for c in args[arg].as_string().chars() {
-                        out.push(c);
-                    }
-                    arg += 1;
-                },
-                '\\' => escaping = true,
-                _ => out.push(c),
-            }
-        }
-    }
-    let s: String = out.into_iter().collect();
-    print!("{}", s);
 }

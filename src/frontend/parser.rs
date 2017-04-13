@@ -1,5 +1,7 @@
-use ast::*;
-use string_table::{self, StringToken};
+use frontend::ast::*;
+use util::ops::*;
+use util::string_table::{self, StringToken};
+
 use pest::prelude::*;
 
 use std::collections::LinkedList;
@@ -18,12 +20,12 @@ impl_rdp! {
         block_stmt = { ["{"] ~ stmt* ~ ["}"] }
         while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
-        print_stmt = { ["print"] ~ ["\""] ~ strng ~ ["\""] ~ (["%"] ~ ["("] ~ (arg ~ ([","] ~ arg)*)? ~ [")"])? ~ [";"] }
+        print_stmt = { ["print"] ~ ["\""] ~ strng ~ ["\""] ~ (["%"] ~ ["("] ~ arg_list ~ [")"])? ~ [";"] }
         ret_stmt   = { ["ret"] ~ expr ~ [";"] }
 
         // Most everything else is an expression
         expr = _{
-            { ["("] ~ expr ~ [")"] | if_expr | block_expr | call_expr | assign_expr | unary_expr | float | snum | blit | iden }
+            { ["("] ~ expr ~ [")"] | special | lit | iden }
             //chng = { cat }
             lgc  = { and | or }
             cond = { le | ge | lt | gt | eq | ne }
@@ -31,6 +33,9 @@ impl_rdp! {
             prod = { times | slash }
             bit  = { band | bor | bxor }
         }
+
+        lit     = _{ float | snum | blit }
+        special = _{ if_expr | block_expr | call_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
 
         // Operators for matching later
         plus  =  { ["+"] }
@@ -55,21 +60,23 @@ impl_rdp! {
         // Expressions to match
         if_expr     = { ["if"] ~ ["("] ~ expr ~ [")"] ~ expr ~ ["else"] ~ expr }
         block_expr  = { ["{"] ~ stmt* ~ expr ~ ["}"] }
-        call_expr   = { iden ~ ["("] ~ (arg ~ ([","] ~ arg)*)? ~ [")"] }
+        call_expr   = { iden ~ ["("] ~ arg_list ~ [")"] }
         assign_expr = { iden ~ ["="] ~ expr }
-        //take_expr   = { iden ~ ["["] ~ expr ~ ["]"] }
-        //slice_expr  = { iden ~ ["["] ~ expr ~ [":"] ~ expr ~ ["]"] }
+        get_expr    = { iden ~ ["["] ~ expr ~ ["]"] }
+        put_expr    = { iden ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
+        array_expr  = { ["["] ~ arg_list ~ ["]"] } 
         //alloc_expr  = { ["|"] ~ ["["] ~ expr ~ ["]"] ~ [">"] }
         unary_expr  = { (not | bnot | minus) ~ expr }
 
         // Helper rules
         arg       = { expr }
         iden_list = _{ ["("] ~ (iden ~ ([","] ~ iden)*)? ~ [")"] }
+        arg_list  = _{ (arg ~ ([","] ~ arg)*)? }
 
         // Literals and identifiers
         iden  = @{ (['a'..'z'] | ['A'..'Z'] | ["_"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
         snum  = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
-        float = { ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
+        float = @{ ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
         blit  = { ["true"] | ["false"] }
         strng = @{ (!(["\""]) ~ any)* }
 
@@ -136,6 +143,15 @@ impl_rdp! {
             },
             (_: assign_expr, &var: iden, value: _expr()) => {
                 Expr::Assign(string_table::insert(var), Box::new(value))
+            },
+            (_: get_expr, &var: iden, index: _expr()) => {
+                Expr::Get(string_table::insert(var), Box::new(index))
+            },
+            (_: put_expr, &var: iden, index: _expr(), value: _expr()) => {
+                Expr::Put(string_table::insert(var), Box::new(index), Box::new(value))
+            },
+            (_: array_expr, args: _arg_list()) => {
+                Expr::Array(args)
             },
             (_: unary_expr, op, e: _expr()) => {
                 Expr::UnOp(match op.rule {
