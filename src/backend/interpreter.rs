@@ -85,6 +85,7 @@ pub fn interpret(program: Program) {
                     UnOp::Neg => a0 = a0.neg(),
                     UnOp::Not => a0 = a0.not(),
                     UnOp::BNot => a0 = a0.bnot(),
+                    UnOp::Len => a0 = a0.len(),
                 }
             },
             Bytecode::Call => {

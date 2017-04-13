@@ -108,6 +108,13 @@ impl Value {
         Value::Int(!self.as_int())
     }
 
+    pub fn len(self) -> Value {
+        match self {
+            Value::Array(a) => Value::Int(a.borrow().len() as i64),
+            _ => panic!("Length operation only available for Array"),
+        }
+    }
+
     pub fn get(self, index: Value) -> Value {
         match self {
             Value::Array(v) => (v.borrow())[index.as_int() as usize].clone(),

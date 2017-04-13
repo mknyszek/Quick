@@ -1,7 +1,8 @@
 func z(a, f, k) {
   var a = [a, f, k];
+  print "Length is @\n" % (#a);
+  print "Array is @\n" % (a);
   a[0] = a[1] = a[2];
-  print "@\n" % (a);
   a[0] + a[1] + a[2]
 }
 

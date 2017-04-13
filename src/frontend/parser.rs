@@ -56,6 +56,7 @@ impl_rdp! {
         bxor  =  { ["^"] }
         bnot  =  { ["~"] }
         cat   =  { ["><"] }
+        len   =  { ["#"] }
 
         // Expressions to match
         if_expr     = { ["if"] ~ ["("] ~ expr ~ [")"] ~ expr ~ ["else"] ~ expr }
@@ -66,7 +67,7 @@ impl_rdp! {
         put_expr    = { iden ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
         array_expr  = { ["["] ~ arg_list ~ ["]"] } 
         //alloc_expr  = { ["|"] ~ ["["] ~ expr ~ ["]"] ~ [">"] }
-        unary_expr  = { (not | bnot | minus) ~ expr }
+        unary_expr  = { (not | bnot | minus | len) ~ expr }
 
         // Helper rules
         arg       = { expr }
@@ -159,6 +160,7 @@ impl_rdp! {
                     Rule::minus => UnOp::Neg,
                     Rule::not => UnOp::Not,
                     Rule::bnot => UnOp::BNot,
+                    Rule::len => UnOp::Len,
                     _ => unreachable!(),
                 }, Box::new(e))
             },

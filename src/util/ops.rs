@@ -29,4 +29,5 @@ pub enum UnOp {
     Neg,
     Not,
     BNot,
+    Len,
 }
