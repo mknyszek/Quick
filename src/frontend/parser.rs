@@ -26,7 +26,7 @@ impl_rdp! {
         // Most everything else is an expression
         expr = _{
             { ["("] ~ expr ~ [")"] | special | lit | iden }
-            //chng = { cat }
+            chng = { cat }
             lgc  = { and | or }
             cond = { le | ge | lt | gt | eq | ne }
             sum  = { plus  | minus }
@@ -55,7 +55,7 @@ impl_rdp! {
         bor   =  { ["|"] }
         bxor  =  { ["^"] }
         bnot  =  { ["~"] }
-        //cat   =  { ["><"] }
+        cat   =  { ["><"] }
 
         // Expressions to match
         if_expr     = { ["if"] ~ ["("] ~ expr ~ [")"] ~ expr ~ ["else"] ~ expr }
@@ -160,6 +160,12 @@ impl_rdp! {
                     Rule::bnot => UnOp::BNot,
                     _ => unreachable!(),
                 }, Box::new(e))
+            },
+            (_: chng, e1: _expr(), op, e2: _expr()) => {
+                Expr::BinOp(Box::new(e1), match op.rule {
+                    Rule::cat => BinOp::Cat,
+                    _ => unreachable!(),
+                }, Box::new(e2))
             },
             (_: lgc, e1: _expr(), op, e2: _expr()) => {
                 Expr::BinOp(Box::new(e1), match op.rule {

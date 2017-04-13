@@ -73,6 +73,7 @@ pub fn interpret(program: Program) {
                     BinOp::BOr => a0 = t0.bor(a0),
                     BinOp::BXor => a0 = t0.bxor(a0),
                     BinOp::Get => a0 = t0.get(a0),
+                    BinOp::Cat => a0 = t0.cat(a0),
                 }
             },
             Bytecode::Op1(op) => {

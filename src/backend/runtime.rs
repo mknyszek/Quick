@@ -16,6 +16,10 @@ pub enum Value {
     //QReg(),
 }
 
+macro_rules! unreachable {
+    () => { panic!("Broken logic; unreachable point!"); }
+}
+
 macro_rules! arith_method {
     ($i:ident) => {
         pub fn $i(self, other: Value) -> Value {
@@ -42,6 +46,13 @@ macro_rules! cmp_method {
             }
         }
     }
+}
+
+enum CatOperation {
+    MergeArrays,
+    PushBack,
+    PushFront,
+    NewArray
 }
 
 impl Value {
@@ -109,6 +120,67 @@ impl Value {
         value
     }
 
+    pub fn cat(self, other: Value) -> Value {
+        let logic = match self {
+            Value::Array(_) => match other {
+                Value::Array(_) => CatOperation::MergeArrays,
+                Value::Int(_) => CatOperation::PushBack,
+                Value::Float(_) => CatOperation::PushBack,
+                Value::Bool(_) => CatOperation::PushBack,
+                _ => panic!("Cat operation applied to non-user type"),
+            },
+            Value::Int(_) => match other {
+                Value::Array(_) => CatOperation::PushFront,
+                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
+                Value::Empty => panic!("Shouldn't operate on Empty"),
+                _ => CatOperation::NewArray,
+            },
+            Value::Float(_) => match other {
+                Value::Array(_) => CatOperation::PushFront,
+                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
+                Value::Empty => panic!("Shouldn't operate on Empty"),
+                _ => CatOperation::NewArray,
+            },
+            Value::Bool(_) => match other {
+                Value::Array(_) => CatOperation::PushFront,
+                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
+                Value::Empty => panic!("Shouldn't operate on Empty"),
+                _ => CatOperation::NewArray,
+            },
+            _ => panic!("Cat operation applied to non-user type"),
+        };
+        match logic {
+            CatOperation::MergeArrays => {
+                if let Value::Array(ref a1) = self {
+                    let mut a1_inner = a1.borrow_mut();
+                    if let Value::Array(ref a2) = other {
+                        for v in a2.borrow().iter() {
+                            a1_inner.push(v.clone());
+                        }
+                    } else { unreachable!(); }
+                } else { unreachable!(); }
+                self
+            },
+            CatOperation::PushBack => {
+                match self {
+                    Value::Array(ref a) => a.borrow_mut().push(other),
+                    _ => unreachable!(),
+                }
+                self
+            },
+            CatOperation::PushFront => {
+                match other {
+                    Value::Array(ref a) => a.borrow_mut().push(self),
+                    _ => unreachable!(),
+                }
+                other
+            },
+            CatOperation::NewArray => {
+                Value::Array(Rc::new(RefCell::new(vec![self, other])))
+            },
+        }
+    }
+
     pub fn as_int(self) -> i64 {
         match self {
             Value::Int(v) => v,
@@ -137,7 +209,7 @@ impl Value {
     pub fn as_addr(self) -> usize {
         match self {
             Value::Addr(v) => v,
-            _ => panic!("Invalid case of {:?} to Addr", self),
+            _ => panic!("Invalid cast of {:?} to Addr", self),
         }
     }
 
