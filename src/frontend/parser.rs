@@ -25,7 +25,7 @@ impl_rdp! {
 
         // Most everything else is an expression
         expr = _{
-            { call_expr | ["("] ~ expr ~ [")"] | special | lit | iden }
+            { if_expr | call_expr | ["("] ~ expr ~ [")"] | special | lit | iden }
             func = {< apply }
             chng = { cat }
             lgc  = { and | or }
@@ -36,7 +36,7 @@ impl_rdp! {
         }
 
         lit     = _{ float | snum | blit }
-        special = _{ if_expr | block_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
+        special = _{ block_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
 
         // Operators for matching later
         plus  =  { ["+"] }
