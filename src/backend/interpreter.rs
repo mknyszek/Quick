@@ -55,29 +55,30 @@ pub fn interpret(program: Program) {
                 let t0 = stack.pop().unwrap();
                 let t1 = stack.pop().unwrap();
                 match op {
-                    TriOp::Put => a0 = t1.put(t0, a0),
+                    TriOp::Put => a0 = a0.put(t0, t1),
                 }
             },
             Bytecode::Op2(op) => {
                 let t0 = stack.pop().unwrap();
                 match op {
-                    BinOp::Add => a0 = t0.add(a0),
-                    BinOp::Sub => a0 = t0.sub(a0),
-                    BinOp::Mul => a0 = t0.mul(a0),
-                    BinOp::Div => a0 = t0.div(a0),
-                    BinOp::Lt => a0 = t0.lt(a0),
-                    BinOp::Gt => a0 = t0.gt(a0),
-                    BinOp::Le => a0 = t0.le(a0),
-                    BinOp::Ge => a0 = t0.ge(a0),
-                    BinOp::Eq => a0 = t0.eq(a0),
-                    BinOp::Ne => a0 = t0.ne(a0),
-                    BinOp::And => a0 = t0.and(a0),
-                    BinOp::Or => a0 = t0.or(a0),
-                    BinOp::BAnd => a0 = t0.band(a0),
-                    BinOp::BOr => a0 = t0.bor(a0),
-                    BinOp::BXor => a0 = t0.bxor(a0),
-                    BinOp::Get => a0 = t0.get(a0),
-                    BinOp::Cat => a0 = t0.cat(a0),
+                    BinOp::Add => a0 = a0.add(t0),
+                    BinOp::Sub => a0 = a0.sub(t0),
+                    BinOp::Mul => a0 = a0.mul(t0),
+                    BinOp::Div => a0 = a0.div(t0),
+                    BinOp::Lt => a0 = a0.lt(t0),
+                    BinOp::Gt => a0 = a0.gt(t0),
+                    BinOp::Le => a0 = a0.le(t0),
+                    BinOp::Ge => a0 = a0.ge(t0),
+                    BinOp::Eq => a0 = a0.eq(t0),
+                    BinOp::Ne => a0 = a0.ne(t0),
+                    BinOp::And => a0 = a0.and(t0),
+                    BinOp::Or => a0 = a0.or(t0),
+                    BinOp::BAnd => a0 = a0.band(t0),
+                    BinOp::BOr => a0 = a0.bor(t0),
+                    BinOp::BXor => a0 = a0.bxor(t0),
+                    BinOp::Get => a0 = a0.get(t0),
+                    BinOp::Cat => a0 = a0.cat(t0),
+                    _ => panic!("Operator {:?} should have been compiled out!", op),
                 }
             },
             Bytecode::Op1(op) => {
@@ -88,9 +89,10 @@ pub fn interpret(program: Program) {
                     UnOp::Len => a0 = a0.len(),
                 }
             },
-            Bytecode::Call => {
+            Bytecode::Call(arity) => {
                 let ft = a0.as_func();
                 let ref fe = program.call_table[ft];
+                assert_eq!(arity, fe.arity);
                 for _ in 0..(fe.locals - fe.arity) {
                     stack.push(Value::Empty);
                 }

@@ -46,7 +46,7 @@ impl Function {
     fn op3(&mut self, op: TriOp)         { self.bc.push(Bytecode::Op3(op));            } 
     fn op2(&mut self, op: BinOp)         { self.bc.push(Bytecode::Op2(op));            } 
     fn op1(&mut self, op: UnOp)          { self.bc.push(Bytecode::Op1(op));            } 
-    fn call(&mut self)                   { self.bc.push(Bytecode::Call);               } 
+    fn call(&mut self, arity: usize)     { self.bc.push(Bytecode::Call(arity));        } 
     fn return_(&mut self, o: usize)      { self.bc.push(Bytecode::Return(o));          }
     fn discard(&mut self)                { self.bc.push(Bytecode::Discard);            }
     fn put_local(&mut self, o: usize)    { self.bc.push(Bytecode::PutLocal(o));        }
@@ -386,7 +386,7 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 compile_expr(a, fns, env)?;
             }
             compile_expr(f.borrow(), fns, env)?;
-            fns.current().call();
+            fns.current().call(args.len());
         },
         Expr::Assign(id, ref e) => {
             compile_expr(e.borrow(), fns, env)?;
@@ -396,20 +396,20 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
             }
         },
         Expr::Get(id, ref idx) => {
+            compile_expr(idx.borrow(), fns, env)?;
             match env.find(id) {
                 Some(offset) => fns.current().get_local(offset),
                 None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
             }
-            compile_expr(idx.borrow(), fns, env)?;
             fns.current().op2(BinOp::Get);
         },
         Expr::Put(id, ref idx, ref e) => {
+            compile_expr(e.borrow(), fns, env)?;
+            compile_expr(idx.borrow(), fns, env)?;
             match env.find(id) {
                 Some(offset) => fns.current().get_local(offset),
                 None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
             }
-            compile_expr(idx.borrow(), fns, env)?;
-            compile_expr(e.borrow(), fns, env)?;
             fns.current().op3(TriOp::Put);
         },
         Expr::Array(ref args) => {
@@ -424,9 +424,13 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
             fns.current().op1(op);
         },
         Expr::BinOp(ref e1, op, ref e2) => {
-            compile_expr(e1.borrow(), fns, env)?;
             compile_expr(e2.borrow(), fns, env)?;
-            fns.current().op2(op);
+            compile_expr(e1.borrow(), fns, env)?;
+            if let BinOp::Apply = op {
+                fns.current().call(1);
+            } else {
+                fns.current().op2(op);
+            }
         }
     }
     Ok(())

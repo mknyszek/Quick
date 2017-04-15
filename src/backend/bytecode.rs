@@ -28,7 +28,7 @@ pub enum Bytecode {
     Op3(TriOp),
     Op2(BinOp),
     Op1(UnOp),
-    Call,
+    Call(usize),
     Discard,
     Return(usize),
     PutLocal(usize),

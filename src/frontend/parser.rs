@@ -17,7 +17,7 @@ impl_rdp! {
         // Types of statements
         func_stmt  = { ["func"] ~ iden ~ iden_list ~ (expr ~ [";"] | block_expr) }
         var_stmt   = { ["var"] ~ iden ~ ["="] ~ expr ~ [";"] }
-        block_stmt = { ["{"] ~ stmt* ~ ["}"] }
+        block_stmt = { blk_s ~ stmt* ~ blk_e }
         while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
         print_stmt = { ["print"] ~ ["\""] ~ strng ~ ["\""] ~ (["%"] ~ ["("] ~ arg_list ~ [")"])? ~ [";"] }
@@ -26,6 +26,7 @@ impl_rdp! {
         // Most everything else is an expression
         expr = _{
             { call_expr | ["("] ~ expr ~ [")"] | special | lit | iden }
+            func = {< apply }
             chng = { cat }
             lgc  = { and | or }
             cond = { le | ge | lt | gt | eq | ne }
@@ -57,16 +58,18 @@ impl_rdp! {
         bnot  =  { ["~"] }
         cat   =  { ["><"] }
         len   =  { ["#"] }
+        apply =  { ["$"] }
+        blk_s =  { ["{"] }
+        blk_e =  { ["}"] }
 
         // Expressions to match
         if_expr     = { ["if"] ~ ["("] ~ expr ~ [")"] ~ expr ~ ["else"] ~ expr }
-        block_expr  = { ["{"] ~ stmt* ~ expr ~ ["}"] }
+        block_expr  = { blk_s ~ stmt* ~ expr ~ blk_e }
         call_expr   = { caller ~ ["("] ~ arg_list ~ [")"] }
         assign_expr = { iden ~ ["="] ~ expr }
         get_expr    = { iden ~ ["["] ~ expr ~ ["]"] }
         put_expr    = { iden ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
         array_expr  = { ["["] ~ arg_list ~ ["]"] } 
-        //alloc_expr  = { ["|"] ~ ["["] ~ expr ~ ["]"] ~ [">"] }
         unary_expr  = { (not | bnot | minus | len) ~ expr }
 
         // Helper rules
@@ -108,7 +111,7 @@ impl_rdp! {
                 Stmt::DefFunc(string_table::insert(name), params, body)
             },
             (_: var_stmt, &i: iden, e: _expr()) => Stmt::DefVar(string_table::insert(i), e),
-            (_: block_stmt, stmts: _stmt_list()) => {
+            (_: block_stmt, _: blk_s, stmts: _stmt_list(), _: blk_e) => {
                 Stmt::Block(stmts)
             },
             (_: while_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::While(pred, Box::new(body)),
@@ -137,7 +140,7 @@ impl_rdp! {
             (_: if_expr, pred: _expr(), then: _expr(), other: _expr()) => {
                 Expr::If(Box::new(pred), Box::new(then), Box::new(other))
             },
-            (_: block_expr, stmts: _stmt_list(), result: _expr()) => {
+            (_: block_expr, _: blk_s, stmts: _stmt_list(), result: _expr(), _: blk_e) => {
                 Expr::Block(stmts, Box::new(result))
             },
             (_: call_expr, func: _expr(), args: _arg_list()) => {
@@ -163,6 +166,12 @@ impl_rdp! {
                     Rule::len => UnOp::Len,
                     _ => unreachable!(),
                 }, Box::new(e))
+            },
+            (_: func, e1: _expr(), op, e2: _expr()) => {
+                Expr::BinOp(Box::new(e1), match op.rule {
+                    Rule::apply => BinOp::Apply,
+                    _ => unreachable!(),
+                }, Box::new(e2))
             },
             (_: chng, e1: _expr(), op, e2: _expr()) => {
                 Expr::BinOp(Box::new(e1), match op.rule {

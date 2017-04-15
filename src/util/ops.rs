@@ -22,6 +22,7 @@ pub enum BinOp {
     BXor,
     Get,
     Cat,
+    Apply,
 }
 
 #[derive(Debug, Clone, Copy)]
