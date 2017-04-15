@@ -11,6 +11,7 @@ pub enum Stmt {
     DefVar(StringToken, Expr),
     Block(LinkedList<Stmt>),
     While(Expr, Box<Stmt>),
+    ForEach(StringToken, Expr, Box<Stmt>),
     Expr(Expr),
     Return(Expr),
     Print(StringToken, LinkedList<Expr>),
@@ -31,7 +32,6 @@ pub enum Expr {
     Get(StringToken, Bxpr),
     Put(StringToken, Bxpr, Bxpr),
     Array(LinkedList<Expr>),
-    //QAlloc(Bxpr),
     UnOp(UnOp, Bxpr),
     BinOp(Bxpr, BinOp, Bxpr),
 }

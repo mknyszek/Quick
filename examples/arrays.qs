@@ -19,3 +19,13 @@ x = 120 >< [120];
 print "@\n" % (x);
 
 print "@ @ @ @\n" % (2, 3, 4, z(2, 3, 4));
+
+func sum(a) {
+  var s = 0;
+  foreach (e in a) {
+    s = s + e;
+  }
+  s
+}
+
+print "@\n" % (sum([9, 1, -10, 35, 3]));

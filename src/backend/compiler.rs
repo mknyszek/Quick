@@ -169,15 +169,19 @@ impl LocalEnvironment {
     }
 
     fn add_id(&mut self, id: StringToken) -> Result<usize, String> {
+        self.ids.add(id, self.id_total)?;
+        Ok(self.add_tmp())
+    }
+
+    fn add_tmp(&mut self) -> usize {
         let pos = self.id_total;
-        self.ids.add(id, pos)?;
         let l = self.id_count.len();
         self.id_count[l-1] += 1;
         self.id_total += 1;
         if self.id_total > self.id_max {
             self.id_max = self.id_total;
         }
-        Ok(pos)
+        pos
     }
 
     fn locals(&self) -> usize {
@@ -312,6 +316,45 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             {
                 let func = fns.current();
                 func.jump(start_loop);
+                func.bind(end_loop);
+            }
+        },
+        Stmt::ForEach(id, ref e, ref b) => {
+            compile_expr(e, fns, env)?;
+            let id = env.add_id(id)?;
+            let counter = env.add_tmp();
+            let array = env.add_tmp();
+            let start_loop;
+            let end_loop;
+            {
+                let func = fns.current();
+                start_loop = func.label();
+                end_loop = func.label();
+
+                func.put_local(array);
+                func.op1(UnOp::Len);
+                func.put_local(counter);
+                func.int(0);
+                func.op2(BinOp::Ge);
+                func.branch(end_loop);
+
+                func.bind(start_loop);
+                func.int(1);
+                func.get_local(counter);
+                func.op2(BinOp::Sub);
+                func.put_local(counter);
+                func.get_local(array);
+                func.op2(BinOp::Get);
+                func.put_local(id);
+                func.discard();
+            }
+            compile_stmt(b.borrow(), fns, env)?;
+            {
+                let func = fns.current();
+                func.int(0);
+                func.get_local(counter);
+                func.op2(BinOp::Gt);
+                func.branch(start_loop);
                 func.bind(end_loop);
             }
         },

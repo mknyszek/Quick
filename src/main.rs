@@ -15,7 +15,6 @@ fn print_line_from_pos(program: &String, pos: usize) {
     let mut line_start = pos;
     let mut line_end = pos;
     let chars: Vec<_> = program.chars().collect();
-    println!("{:?}", chars);
     while line_start > 0 && chars[line_start] != '\n' {
         line_start -= 1;
     }
