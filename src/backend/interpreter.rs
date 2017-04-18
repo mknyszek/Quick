@@ -2,7 +2,8 @@ use util::ops::*;
 use util::string_table;
 
 use backend::bytecode::*;
-use backend::runtime::{self, Value};
+use backend::runtime::{self, IRT_TABLE};
+use backend::value::Value;
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -78,7 +79,7 @@ pub fn interpret(program: Program) {
                     BinOp::BXor => a0 = a0.bxor(t0),
                     BinOp::Get => a0 = a0.get(t0),
                     BinOp::Cat => a0 = a0.cat(t0),
-                    _ => panic!("Operator {:?} should have been compiled out!", op),
+                    _ => panic!("Operator {:?} should have been compiled out.", op),
                 }
             },
             Bytecode::Op1(op) => {
@@ -87,21 +88,29 @@ pub fn interpret(program: Program) {
                     UnOp::Not => a0 = a0.not(),
                     UnOp::BNot => a0 = a0.bnot(),
                     UnOp::Len => a0 = a0.len(),
+                    UnOp::QAlloc => a0 = a0.qalloc(),
                 }
             },
             Bytecode::Call(arity) => {
                 let ft = a0.as_func();
-                let ref fe = program.call_table[ft];
-                assert_eq!(arity, fe.arity);
-                for _ in 0..(fe.locals - fe.arity) {
-                    stack.push(Value::Empty);
+                if ft.is_native() {
+                    let ref nfe = IRT_TABLE[ft.to_native_index()];
+                    assert_eq!(arity, nfe.arity);
+                    (nfe.entry)(&mut stack);
+                    a0 = stack.pop().unwrap();
+                } else {
+                    let ref fe = program.call_table[ft.to_call_index()];
+                    assert_eq!(arity, fe.arity);
+                    for _ in 0..(fe.locals - fe.arity) {
+                        stack.push(Value::Empty);
+                    }
+                    let old_fp = fp;
+                    fp = stack.len() - fe.locals;
+                    stack.push(Value::Addr(pc + 1));
+                    a0 = Value::Addr(old_fp);
+                    pc = fe.addr;
+                    continue;
                 }
-                let old_fp = fp;
-                fp = stack.len() - fe.locals;
-                stack.push(Value::Addr(pc + 1));
-                a0 = Value::Addr(old_fp);
-                pc = fe.addr;
-                continue;
             },
             Bytecode::Discard => a0 = stack.pop().unwrap(),
             Bytecode::Return(locals) => {
@@ -112,10 +121,7 @@ pub fn interpret(program: Program) {
                 stack.truncate(sp - locals);
                 continue;
             },
-            Bytecode::PutLocal(index) => {
-                stack[fp + index] = a0.clone();
-                //a0 = stack.pop().unwrap();
-            },
+            Bytecode::PutLocal(index) => stack[fp + index] = a0.clone(),
             Bytecode::GetLocal(index) => {
                 stack.push(a0);
                 a0 = stack[fp + index].clone();

@@ -5,4 +5,4 @@ authors = ["Michael Anthony Knyszek <mknyszek@gmail.com>"]
 
 [dependencies]
 pest = "0.4"
-libquantum = "0.1.1"
+libquantum = "0.1.2"

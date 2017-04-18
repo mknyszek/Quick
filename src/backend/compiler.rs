@@ -1,5 +1,6 @@
 use frontend::ast::*;
 use backend::bytecode::*;
+use backend::runtime::{IRT_STRINGS, IRT_TABLE};
 use util::ops::*;
 use util::string_table::{self, StringToken};
 
@@ -7,14 +8,6 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::vec::Vec;
-
-macro_rules! return_error {
-    ($($i:expr),*) => {{
-        let mut s = String::new();
-        write!(s, $($i),*).ok().unwrap();
-        return Err(s);
-    }}
-}
 
 type LabelToken = usize;
 
@@ -53,7 +46,7 @@ impl Function {
     fn get_local(&mut self, o: usize)    { self.bc.push(Bytecode::GetLocal(o));        }
     fn jump(&mut self, o: usize)         { self.bc.push(Bytecode::Jump(o as isize));   }
     fn branch(&mut self, o: usize)       { self.bc.push(Bytecode::Branch(o as isize)); }
-    fn print(&mut self, st:StringToken, n: usize) { self.bc.push(Bytecode::Print(st, n)); }
+    fn print(&mut self, st: StringToken, n: usize) { self.bc.push(Bytecode::Print(st, n)); }
 
     fn label(&mut self) -> LabelToken { 
         self.labels.push(None);
@@ -194,6 +187,7 @@ impl LocalEnvironment {
 }
 
 struct Functions {
+    ftg: FunctionToken,
     ctx: Vec<FunctionToken>,
     fns: Vec<Function>,
     env: Environment<FunctionToken>,
@@ -201,31 +195,40 @@ struct Functions {
 
 impl Functions {
     fn new() -> Functions {
+        let ftg = FunctionToken::from_index(IRT_TABLE.len());
         let mut fns = Vec::new();
+        let mut ctx = Vec::new();
+        let mut env = Environment::new();
         let top = Function::new(0);
         fns.push(top);
-        let mut ctx = Vec::new();
-        ctx.push(0);
+        ctx.push(ftg);
+        let mut i = 0;
+        for s in IRT_STRINGS.iter() {
+            let ft = FunctionToken::from_index(i);
+            env.add(string_table::insert(s), ft).unwrap();
+            i += 1;
+        }
         Functions {
+            ftg: ftg.inc(),
             ctx: ctx,
             fns: fns,
-            env: Environment::new(),
+            env: env,
         }
     }
 
     fn current(&mut self) -> &mut Function {
         let l = self.ctx.len();
         let ft = self.ctx[l-1];
-        &mut self.fns[ft]
+        &mut self.fns[ft.to_call_index()]
     }
 
     fn push_func(&mut self, name: StringToken, arity: usize) -> Result<(), String> {
-        let ft = self.fns.len();
-        self.env.add(name, ft)?;
-        self.ctx.push(ft);
+        self.env.add(name, self.ftg)?;
+        self.ctx.push(self.ftg);
         let f = Function::new(arity);
         self.fns.push(f);
         self.env.push_scope();
+        self.ftg = self.ftg.inc();
         Ok(())
     }
 
@@ -239,7 +242,7 @@ impl Functions {
     }
 
     fn to_program(self) -> Program {
-        let Functions { ctx: _, fns, env: _ } = self; 
+        let Functions { ftg: _, ctx: _, fns, env: _ } = self; 
         let mut instructions = Vec::new();
         let mut call_table = Vec::new();
         for func in fns.into_iter() {

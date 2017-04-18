@@ -31,4 +31,5 @@ pub enum UnOp {
     Not,
     BNot,
     Len,
+    QAlloc,
 }

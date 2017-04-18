@@ -37,7 +37,7 @@ impl_rdp! {
         }
 
         lit     = _{ float | snum | blit }
-        special = _{ block_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
+        special = _{ alloc_expr | block_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
 
         // Operators for matching later
         plus  =  { ["+"] }
@@ -71,6 +71,7 @@ impl_rdp! {
         get_expr    = { iden ~ ["["] ~ expr ~ ["]"] }
         put_expr    = { iden ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
         array_expr  = { ["["] ~ arg_list ~ ["]"] } 
+        alloc_expr  = { ["|"] ~ expr ~ [">"] }
         unary_expr  = { (not | bnot | minus | len) ~ expr }
 
         // Helper rules
@@ -143,6 +144,9 @@ impl_rdp! {
             },
             (_: if_expr, pred: _expr(), then: _expr(), other: _expr()) => {
                 Expr::If(Box::new(pred), Box::new(then), Box::new(other))
+            },
+            (_: alloc_expr, n: _expr()) => {
+                Expr::UnOp(UnOp::QAlloc, Box::new(n))
             },
             (_: block_expr, _: blk_s, stmts: _stmt_list(), result: _expr(), _: blk_e) => {
                 Expr::Block(stmts, Box::new(result))

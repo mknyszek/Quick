@@ -1,244 +1,39 @@
-use backend::bytecode::FunctionToken;
+use backend::value::Value;
 
-use std::cell::RefCell;
-use std::ops::{Add, Sub, Mul, Div};
-use std::rc::Rc;
 use std::vec::Vec;
 
-type ArrayObject = Rc<RefCell<Vec<Value>>>;
-
-#[derive(Debug, Clone)]
-pub enum Value {
-    Empty,
-    Addr(usize),
-    Int(i64),
-    Bool(bool),
-    Float(f64),
-    Func(FunctionToken),
-    Array(ArrayObject),
-    //QReg(),
+pub struct IRTFunction {
+    pub entry: fn(&mut Vec<Value>),
+    pub arity: usize,
 }
 
-macro_rules! unreachable {
-    () => { panic!("Broken logic; unreachable point!"); }
-}
-
-macro_rules! arith_method {
-    ($i:ident) => {
-        pub fn $i(self, other: Value) -> Value {
-            if let Value::Float(_) = self {
-                Value::Float(self.as_float().$i(&other.as_float()))
-            } else if let Value::Float(_) = other {
-                Value::Float(self.as_float().$i(&other.as_float()))
-            } else {
-                Value::Int(self.as_int().$i(&other.as_int()))
-            }
-        }
-    }
-}
-
-macro_rules! cmp_method {
-    ($i:ident) => {
-        pub fn $i(self, other: Value) -> Value {
-            if let Value::Float(_) = self {
-                Value::Bool(self.as_float().$i(&other.as_float()))
-            } else if let Value::Float(_) = other {
-                Value::Bool(self.as_float().$i(&other.as_float()))
-            } else {
-                Value::Bool(self.as_int().$i(&other.as_int()))
-            }
-        }
-    }
-}
-
-enum CatOperation {
-    MergeArrays,
-    PushBack,
-    PushFront,
-    NewArray
-}
-
-impl Value {
-
-    arith_method!(add);
-    arith_method!(sub);
-    arith_method!(mul);
-    arith_method!(div);
-
-    cmp_method!(lt);
-    cmp_method!(gt);
-    cmp_method!(le);
-    cmp_method!(ge);
-    cmp_method!(eq);
-    cmp_method!(ne);
-
-    pub fn and(self, other: Value) -> Value {
-        Value::Bool(self.as_bool() && other.as_bool())
-    }
-
-    pub fn or(self, other: Value) -> Value {
-        Value::Bool(self.as_bool() || other.as_bool())
-    }
-
-    pub fn band(self, other: Value) -> Value {
-        Value::Int(self.as_int() & other.as_int())
-    }
-
-    pub fn bor(self, other: Value) -> Value {
-        Value::Int(self.as_int() | other.as_int())
-    }
-
-    pub fn bxor(self, other: Value) -> Value {
-        Value::Int(self.as_int() ^ other.as_int())
-    }
-
-    pub fn neg(self) -> Value {
-        match self {
-            Value::Int(v) => Value::Int(-v),
-            Value::Float(v) => Value::Float(-v),
-            _ => panic!("Negation only available for Int and Float"),
-        }
-    }
-
-    pub fn not(self) -> Value {
-        Value::Bool(!self.as_bool())
-    }
-
-    pub fn bnot(self) -> Value {
-        Value::Int(!self.as_int())
-    }
-
-    pub fn len(self) -> Value {
-        match self {
-            Value::Array(a) => Value::Int(a.borrow().len() as i64),
-            _ => panic!("Length operation only available for Array"),
-        }
-    }
-
-    pub fn get(self, index: Value) -> Value {
-        match self {
-            Value::Array(v) => (v.borrow())[index.as_int() as usize].clone(),
-            _ => panic!("Index operation only available for Array"),
-        }
-    }
-
-    pub fn put(self, index: Value, value: Value) -> Value {
-        match self {
-            Value::Array(v) => (v.borrow_mut())[index.as_int() as usize] = value.clone(),
-            _ => panic!("Index operation only available for Array"),
-        }
-        value
-    }
-
-    pub fn cat(self, other: Value) -> Value {
-        let logic = match self {
-            Value::Array(_) => match other {
-                Value::Array(_) => CatOperation::MergeArrays,
-                Value::Int(_) => CatOperation::PushBack,
-                Value::Float(_) => CatOperation::PushBack,
-                Value::Bool(_) => CatOperation::PushBack,
-                _ => panic!("Cat operation applied to non-user type"),
+irt_table! {
+    fn[stack] hadamard(1) {
+        let s = stack.pop().unwrap();
+        match s {
+            Value::QuReg(ref q) => {
+                let l = q.borrow().width();
+                q.borrow_mut().walsh(l);
             },
-            Value::Int(_) 
-            | Value::Float(_) 
-            | Value::Bool(_) 
-            | Value::Func(_) => match other {
-                Value::Array(_) => CatOperation::PushFront,
-                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
-                Value::Empty => panic!("Shouldn't operate on Empty"),
-                _ => CatOperation::NewArray,
+            Value::Qubit(i, ref q) => q.borrow_mut().hadamard(i),
+            _ => panic!("Hadamard only available on quantum registers and bits."),
+        }
+        stack.push(s);
+    }
+
+    fn[stack] measure(1) {
+        let s = stack.pop().unwrap();
+        let value = match s {
+            Value::QuReg(ref q) => {
+                let width = q.borrow().width();
+                Value::Int(q.borrow_mut().measure_partial(0..width) as i64)
             },
-            _ => panic!("Cat operation applied to non-user type"),
+            Value::Qubit(i, ref q) => {
+                Value::Int(q.borrow_mut().measure_bit_preserve(i) as i64)
+            },
+            _ => panic!("Measurement only available for quantum registers and bits."),
         };
-        match logic {
-            CatOperation::MergeArrays => {
-                if let Value::Array(ref a1) = self {
-                    let mut a1_inner = a1.borrow_mut();
-                    if let Value::Array(ref a2) = other {
-                        for v in a2.borrow().iter() {
-                            a1_inner.push(v.clone());
-                        }
-                    } else { unreachable!(); }
-                } else { unreachable!(); }
-                self
-            },
-            CatOperation::PushBack => {
-                match self {
-                    Value::Array(ref a) => a.borrow_mut().push(other),
-                    _ => unreachable!(),
-                }
-                self
-            },
-            CatOperation::PushFront => {
-                match other {
-                    Value::Array(ref a) => a.borrow_mut().push(self),
-                    _ => unreachable!(),
-                }
-                other
-            },
-            CatOperation::NewArray => {
-                Value::Array(Rc::new(RefCell::new(vec![self, other])))
-            },
-        }
-    }
-
-    pub fn as_int(self) -> i64 {
-        match self {
-            Value::Int(v) => v,
-            Value::Float(v) => v as i64,
-            Value::Bool(v) => v as i64, 
-            _ => panic!("Invalid cast of {:?} to Int", self),
-        }
-    }
-
-    pub fn as_float(self) -> f64 {
-        match self {
-            Value::Int(v) => v as f64,
-            Value::Float(v) => v,
-            _ => panic!("Invalid cast of {:?} to Float", self),
-        }
-    }
-
-    pub fn as_bool(self) -> bool {
-        match self {
-            Value::Bool(v) => v,
-            Value::Int(v) => if v != 0 { true } else { false },
-            _ => panic!("Invalid cast of {:?} to Bool", self),
-        }
-    }
-
-    pub fn as_func(self) -> FunctionToken {
-        match self {
-            Value::Func(ft) => ft,
-            _ => panic!("Invalid cast of {:?} to Func", self),
-        }
-    }
-
-    pub fn as_addr(self) -> usize {
-        match self {
-            Value::Addr(v) => v,
-            _ => panic!("Invalid cast of {:?} to Addr", self),
-        }
-    }
-
-    pub fn as_string(self) -> String {
-        match self {
-            Value::Bool(v) => v.to_string(),
-            Value::Int(v) => v.to_string(),
-            Value::Float(v) => v.to_string(),
-            Value::Array(v) => {
-                let mut out = String::new();
-                out.push('[');
-                out.push(' ');
-                for i in v.borrow().iter() {
-                    out.push_str(&(i.clone().as_string())[..]);
-                    out.push(' ');
-                }
-                out.push(']');
-                out
-            },
-            _ => panic!("String representation not available for other types"),
-        }
+        stack.push(value);
     }
 }
 
