@@ -1,3 +1,2 @@
 var x = hadamard $ |3>;
-hadamard $ x;
-print "@\n" % (#x);
+print "@ @ @\n" % (#x, measure $ x, measure $ hadamard $ hadamard $ |3>);
