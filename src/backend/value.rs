@@ -27,7 +27,8 @@ enum CatOperation {
     MergeArrays,
     PushBack,
     PushFront,
-    NewArray
+    NewArray,
+    Tensor
 }
 
 macro_rules! arith_method {
@@ -146,12 +147,20 @@ impl Value {
                 Value::Int(_) => CatOperation::PushBack,
                 Value::Float(_) => CatOperation::PushBack,
                 Value::Bool(_) => CatOperation::PushBack,
+                Value::QuReg(_) => CatOperation::PushBack,
                 _ => panic!("Cat operation applied to non-user type"),
             },
             Value::Int(_) 
             | Value::Float(_) 
             | Value::Bool(_) 
             | Value::Func(_) => match other {
+                Value::Array(_) => CatOperation::PushFront,
+                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
+                Value::Empty => panic!("Shouldn't operate on Empty"),
+                _ => CatOperation::NewArray,
+            },
+            Value::QuReg(_) => match other {
+                Value::QuReg(_) => CatOperation::Tensor,
                 Value::Array(_) => CatOperation::PushFront,
                 Value::Addr(_) => panic!("Shouldn't operate on Addr"),
                 Value::Empty => panic!("Shouldn't operate on Empty"),
@@ -187,6 +196,13 @@ impl Value {
             },
             CatOperation::NewArray => {
                 Value::Array(Rc::new(RefCell::new(vec![self, other])))
+            },
+            CatOperation::Tensor => {
+                // TODO: Improve error message when more than one strong reference
+                // is found on self or other.
+                let q = Rc::try_unwrap(self.as_qureg()).unwrap().into_inner();
+                let o = Rc::try_unwrap(other.as_qureg()).unwrap().into_inner();
+                Value::QuReg(Rc::new(RefCell::new(q.tensor(o))))
             },
         }
     }
@@ -227,6 +243,13 @@ impl Value {
         match self {
             Value::Addr(v) => v,
             _ => panic!("Invalid cast of {:?} to Addr", self),
+        }
+    }
+
+    pub fn as_qureg(self) -> QuRegObject {
+        match self {
+            Value::QuReg(v) => v,
+            _ => panic!("Invalid cast of {:?} to QuReg", self),
         }
     }
 

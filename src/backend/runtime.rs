@@ -45,50 +45,57 @@ irt_table! {
         stack.push(s);
     }
 
-    fn[stack] sigx(1) {
+    fn[stack] sigx(1) { qubit_irt_fn_t!(stack, sigma_x); }
+    fn[stack] sigy(1) { qubit_irt_fn_t!(stack, sigma_y); }
+    fn[stack] sigz(1) { qubit_irt_fn_t!(stack, sigma_z); }
+
+    fn[stack] rx(2) { qubit_irt_fn_t_g!(stack, rotate_x); }
+    fn[stack] ry(2) { qubit_irt_fn_t_g!(stack, rotate_y); }
+    fn[stack] rz(2) { qubit_irt_fn_t_g!(stack, rotate_z); }
+
+    fn[stack] phase(2)   { qubit_irt_fn_t_g!(stack, phase); }
+    fn[stack] phaseby(2) { qubit_irt_fn_t_g!(stack, phaseby); }
+
+    fn[stack] qft(1) {
         let s = stack.pop().unwrap();
         match s {
             Value::QuReg(ref q) => {
                 let l = q.borrow().width();
-                let mut qm = q.borrow_mut();
-                for i in 0..l {
-                    qm.sigma_x(i);
-                }
+                q.borrow_mut().qft(l);
             },
-            Value::Qubit(i, ref q) => q.borrow_mut().sigma_x(i),
-            _ => panic!("Sigma X only available on quantum registers and bits."),
+            _ => panic!("QFT only available on quantum registers."),
         }
         stack.push(s);
     }
 
-    fn[stack] sigy(1) {
+    fn[stack] iqft(1) {
         let s = stack.pop().unwrap();
         match s {
             Value::QuReg(ref q) => {
                 let l = q.borrow().width();
-                let mut qm = q.borrow_mut();
-                for i in 0..l {
-                    qm.sigma_y(i);
-                }
+                q.borrow_mut().qft_inv(l);
             },
-            Value::Qubit(i, ref q) => q.borrow_mut().sigma_y(i),
-            _ => panic!("Sigma Y only available on quantum registers and bits."),
+            _ => panic!("QFT only available on quantum registers."),
         }
         stack.push(s);
     }
 
-    fn[stack] sigz(1) {
+    fn[stack] qftw(2) {
+        let w = stack.pop().unwrap();
         let s = stack.pop().unwrap();
         match s {
-            Value::QuReg(ref q) => {
-                let l = q.borrow().width();
-                let mut qm = q.borrow_mut();
-                for i in 0..l {
-                    qm.sigma_z(i);
-                }
-            },
-            Value::Qubit(i, ref q) => q.borrow_mut().sigma_z(i),
-            _ => panic!("Sigma Z only available on quantum registers and bits."),
+            Value::QuReg(ref q) => q.borrow_mut().qft(w.as_int() as usize),
+            _ => panic!("QFT only available on quantum registers."),
+        }
+        stack.push(s);
+    }
+
+    fn[stack] iqftw(2) {
+        let w = stack.pop().unwrap();
+        let s = stack.pop().unwrap();
+        match s {
+            Value::QuReg(ref q) => q.borrow_mut().qft_inv(w.as_int() as usize),
+            _ => panic!("QFT only available on quantum registers."),
         }
         stack.push(s);
     }
