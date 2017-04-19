@@ -18,6 +18,9 @@ print "@\n" % (x);
 x = 120 >< [120];
 print "@\n" % (x);
 
+x = 120 >< [];
+print "@\n" % (x);
+
 x = cat(1, 2);
 print "@ @ @\n" % (x, len $ x, get(x, 0));
 put(x, 0, 3);

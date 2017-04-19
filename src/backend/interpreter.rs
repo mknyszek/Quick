@@ -59,13 +59,17 @@ pub fn interpret(program: Program) {
             },
             Bytecode::Array(len) => {
                 let mut v = Vec::with_capacity(len);
-                let sp = stack.len();
-                for i in (0..len-1).rev() {
-                    v.push(stack[sp-1-i].clone());
-                }
-                v.push(a0);
-                for _ in 0..len-1 {
-                    let _ = stack.pop().unwrap();
+                if len != 0 {
+                    let sp = stack.len();
+                    for i in (0..len-1).rev() {
+                        v.push(stack[sp-1-i].clone());
+                    }
+                    v.push(a0);
+                    for _ in 0..len-1 {
+                        let _ = stack.pop().unwrap();
+                    }
+                } else {
+                    stack.push(a0);
                 }
                 a0 = Value::Array(Rc::new(RefCell::new(v)));
             },
