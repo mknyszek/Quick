@@ -47,6 +47,18 @@ macro_rules! irt_table {
 }
 
 #[macro_export]
+macro_rules! math_irt_fn {
+    ($stack:ident, $f:ident) => {
+        let s = $stack.pop().unwrap();
+        $stack.push(match s {
+            Value::Int(v) => Value::Float((v as f64).$f()),
+            Value::Float(v) => Value::Float(v.$f()),
+            _ => panic!("sqrt only defined for Int and Float."),
+        });
+    }
+}
+
+#[macro_export]
 macro_rules! qubit_irt_fn_t {
     ($stack:ident, $f:ident) => {
         let s = $stack.pop().unwrap();

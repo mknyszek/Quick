@@ -26,6 +26,7 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
+    Pow,
     Lt,
     Gt,
     Le,
@@ -48,5 +49,6 @@ pub enum UnOp {
     Not,
     BNot,
     Len,
+    Invoke,
     QAlloc,
 }

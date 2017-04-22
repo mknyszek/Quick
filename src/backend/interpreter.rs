@@ -87,6 +87,7 @@ pub fn interpret(program: Program) {
                     BinOp::Sub => a0 = a0.sub(t0),
                     BinOp::Mul => a0 = a0.mul(t0),
                     BinOp::Div => a0 = a0.div(t0),
+                    BinOp::Pow => a0 = a0.pow(t0),
                     BinOp::Lt => a0 = a0.lt(t0),
                     BinOp::Gt => a0 = a0.gt(t0),
                     BinOp::Le => a0 = a0.le(t0),
@@ -110,6 +111,7 @@ pub fn interpret(program: Program) {
                     UnOp::BNot => a0 = a0.bnot(),
                     UnOp::Len => a0 = a0.len(),
                     UnOp::QAlloc => a0 = a0.qalloc(),
+                    _ => panic!("Operator {:?} should have been compiled out.", op),
                 }
             },
             Bytecode::Call(arity) => {

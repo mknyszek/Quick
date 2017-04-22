@@ -83,6 +83,10 @@ impl Value {
     arith_method!(mul);
     arith_method!(div);
 
+    pub fn pow(self, other: Value) -> Value {
+        Value::Float(self.as_float().powf(other.as_float()))
+    }
+
     cmp_method!(lt);
     cmp_method!(gt);
     cmp_method!(le);

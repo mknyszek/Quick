@@ -4,4 +4,4 @@ func fib(n) {
   else fib(n-1) + fib(n-2)
 }
 
-print "@\n" % (fib(30));
+print("@\n", fib(30));

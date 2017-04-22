@@ -38,29 +38,44 @@ impl_rdp! {
         while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         fore_stmt  = { ["foreach"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
-        print_stmt = { ["print"] ~ ["\""] ~ strng ~ ["\""] ~ (["%"] ~ ["("] ~ arg_list ~ [")"])? ~ [";"] }
+        print_stmt = { ["print"] ~ lst_s ~ string ~ ([","] ~ arg)* ~ lst_e ~ [";"] }
         ret_stmt   = { ["ret"] ~ expr ~ [";"] }
 
         // Most everything else is an expression
         expr = _{
-            { if_expr | call_expr | ["("] ~ expr ~ [")"] | special | lit | iden }
+            { rexpr }
             func = {< apply }
             chng = { cat }
             lgc  = { and | or }
             cond = { le | ge | lt | gt | eq | ne }
             sum  = { plus  | minus }
             prod = { times | slash }
+            exp  = {< pow }
             bit  = { band | bor | bxor }
         }
+        
+        rexpr = _{ sexpr | ["("] ~ expr ~ [")"] | lit | iden }
 
-        lit     = _{ float | snum | blit }
-        special = _{ alloc_expr | block_expr | array_expr | assign_expr | put_expr | get_expr | unary_expr } 
+        sexpr = _{
+            if_expr | 
+            call_expr |
+            unary_expr |
+            alloc_expr |
+            block_expr |
+            array_expr |
+            assign_expr |
+            put_expr |
+            get_expr
+        }
+
+        lit   = _{ float | snum | blit }
 
         // Operators for matching later
         plus  =  { ["+"] }
         minus =  { ["-"] }
         times =  { ["*"] }
         slash =  { ["/"] }
+        pow   =  { ["^^"] }
         lt    =  { ["<"] }
         gt    =  { [">"] }
         le    =  { ["<="] }
@@ -79,30 +94,35 @@ impl_rdp! {
         apply =  { ["$"] }
         blk_s =  { ["{"] }
         blk_e =  { ["}"] }
+        lst_s =  { ["("] }
+        lst_e =  { [")"] }
+        arr_s =  { ["["] }
+        arr_e =  { ["]"] }
 
         // Expressions to match
         if_expr     = { ["if"] ~ ["("] ~ expr ~ [")"] ~ expr ~ ["else"] ~ expr }
         block_expr  = { blk_s ~ stmt* ~ expr ~ blk_e }
-        call_expr   = { caller ~ ["("] ~ arg_list ~ [")"] }
+        call_expr   = { caller ~ arg_list }
         assign_expr = { iden ~ ["="] ~ expr }
         get_expr    = { iden ~ ["["] ~ expr ~ ["]"] }
         put_expr    = { iden ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
-        array_expr  = { ["["] ~ arg_list ~ ["]"] } 
+        array_expr  = { arr_s ~ (arg ~ ([","] ~ arg)*)? ~ arr_e } 
         alloc_expr  = { ["|"] ~ expr ~ [">"] }
-        unary_expr  = { (not | bnot | minus | len) ~ expr }
+        unary_expr  = { (apply | not | bnot | minus | len) ~ rexpr }
 
         // Helper rules
         arg       = { expr }
         iden_list = _{ ["("] ~ (iden ~ ([","] ~ iden)*)? ~ [")"] }
-        arg_list  = _{ (arg ~ ([","] ~ arg)*)? }
+        arg_list  = _{ lst_s ~ (arg ~ ([","] ~ arg)*)? ~ lst_e }
         caller    = _{ iden | ["("] ~ expr ~ [")"] }
 
         // Literals and identifiers
-        iden  = @{ (['a'..'z'] | ['A'..'Z'] | ["_"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
-        snum  = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
-        float = @{ ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
-        blit  = { ["true"] | ["false"] }
-        strng = @{ (!(["\""]) ~ any)* }
+        iden   = @{ (['a'..'z'] | ['A'..'Z'] | ["_"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
+        snum   = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
+        float  = @{ ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
+        blit   = { ["true"] | ["false"] }
+        chr    = _{ !(["\""]) ~ any }
+        string = @{ ["\""] ~ (["\\\""] | chr)* ~ ["\""] }
 
         // Ignore whitespace
         whitespace = _{ [" "] | ["\n"] | ["\r"] | ["\t"] }
@@ -139,8 +159,9 @@ impl_rdp! {
             },
             (_: ret_stmt, value: _expr()) => Stmt::Return(value),
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
-            (_: print_stmt, &s: strng, args: _arg_list()) => {
-                Stmt::Print(string_table::insert(s), args) 
+            (_: print_stmt, _: lst_s, &s: string, args: _arg_list(), _: lst_e) => {
+                let s_len = s.len();
+                Stmt::Print(string_table::insert(&s[1..s_len-1]), args) 
             },
         }
         _stmt_list(&self) -> LinkedList<Stmt> {
@@ -168,7 +189,7 @@ impl_rdp! {
             (_: block_expr, _: blk_s, stmts: _stmt_list(), result: _expr(), _: blk_e) => {
                 Expr::Block(stmts, Box::new(result))
             },
-            (_: call_expr, func: _expr(), args: _arg_list()) => {
+            (_: call_expr, func: _expr(), _: lst_s, args: _arg_list(), _: lst_e) => {
                 Expr::Call(Box::new(func), args)
             },
             (_: assign_expr, &var: iden, value: _expr()) => {
@@ -180,7 +201,7 @@ impl_rdp! {
             (_: put_expr, &var: iden, index: _expr(), value: _expr()) => {
                 Expr::Put(string_table::insert(var), Box::new(index), Box::new(value))
             },
-            (_: array_expr, args: _arg_list()) => {
+            (_: array_expr, _: arr_s, args: _arg_list(), _: arr_e) => {
                 Expr::Array(args)
             },
             (_: unary_expr, op, e: _expr()) => {
@@ -189,6 +210,7 @@ impl_rdp! {
                     Rule::not => UnOp::Not,
                     Rule::bnot => UnOp::BNot,
                     Rule::len => UnOp::Len,
+                    Rule::apply => UnOp::Invoke,
                     _ => unreachable!(),
                 }, Box::new(e))
             },
@@ -233,6 +255,12 @@ impl_rdp! {
                 Expr::BinOp(Box::new(e1), match op.rule {
                     Rule::times => BinOp::Mul,
                     Rule::slash => BinOp::Div,
+                    _ => unreachable!(),
+                }, Box::new(e2))
+            },
+            (_: exp, e1: _expr(), op, e2: _expr()) => {
+                Expr::BinOp(Box::new(e1), match op.rule {
+                    Rule::pow => BinOp::Pow,
                     _ => unreachable!(),
                 }, Box::new(e2))
             },

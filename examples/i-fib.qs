@@ -11,4 +11,4 @@ func fib(n) {
   b
 }
 
-print "@\n" % (fib(30));
+print("@\n", fib(30));

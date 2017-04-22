@@ -236,7 +236,11 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
         },
         Expr::UnOp(op, ref e) => {
             compile_expr(e.borrow(), fns, env)?;
-            fns.current().op1(op);
+            if let UnOp::Invoke = op {
+                fns.current().call(0);
+            } else {
+                fns.current().op1(op);
+            }
         },
         Expr::BinOp(ref e1, op, ref e2) => {
             compile_expr(e2.borrow(), fns, env)?;

@@ -17,6 +17,7 @@
 
 use backend::value::Value;
 
+use std::f64;
 use std::vec::Vec;
 
 pub struct IRTFunction {
@@ -47,6 +48,35 @@ irt_table! {
         let s2 = stack.pop().unwrap();
         let s1 = stack.pop().unwrap();
         stack.push(s1.cat(s2));
+    }
+
+    fn[stack] ceil(1) { math_irt_fn!(stack, ceil); }
+    fn[stack] floor(1) { math_irt_fn!(stack, floor); }
+    fn[stack] round(1) { math_irt_fn!(stack, round); }
+    fn[stack] abs(1) { math_irt_fn!(stack, abs); }
+    fn[stack] ln(1) { math_irt_fn!(stack, ln); }
+    fn[stack] log2(1) { math_irt_fn!(stack, log2); }
+    fn[stack] log10(1) { math_irt_fn!(stack, log10); }
+    fn[stack] sqrt(1) { math_irt_fn!(stack, sqrt); }
+    fn[stack] cos(1) { math_irt_fn!(stack, cos); }
+    fn[stack] sin(1) { math_irt_fn!(stack, sin); }
+    fn[stack] tan(1) { math_irt_fn!(stack, tan); }
+    fn[stack] acos(1) { math_irt_fn!(stack, acos); }
+    fn[stack] asin(1) { math_irt_fn!(stack, asin); }
+    fn[stack] atan(1) { math_irt_fn!(stack, atan); }
+
+    fn[stack] pow(2) {
+        let e = stack.pop().unwrap();
+        let s = stack.pop().unwrap();
+        stack.push(s.pow(e));
+    }
+
+    fn[stack] pi(0) {
+        stack.push(Value::Float(f64::consts::PI));
+    }
+
+    fn[stack] e(0) {
+        stack.push(Value::Float(f64::consts::E));
     }
 
     fn[stack] hadamard(1) {
@@ -143,6 +173,7 @@ pub fn printf(fmt: &String, args: &[Value]) {
                 'n' => out.push('\n'),
                 'r' => out.push('\r'),
                 't' => out.push('\t'),
+                '\"' => out.push('\"'),
                 _ => out.push(c),
             }
             escaping = false;
