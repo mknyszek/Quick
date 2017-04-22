@@ -181,10 +181,14 @@ pub fn printf(fmt: &String, args: &[Value]) {
             match c {
                 // TODO: Verify that not too few args
                 '@' => {
-                    for c in args[arg].clone().as_string().chars() {
-                        out.push(c);
+                    if arg >= args.len() {
+                        out.push('@');
+                    } else {
+                        for c in args[arg].clone().as_string().chars() {
+                            out.push(c);
+                        }
+                        arg += 1;
                     }
-                    arg += 1;
                 },
                 '\\' => escaping = true,
                 _ => out.push(c),

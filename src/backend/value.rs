@@ -140,16 +140,24 @@ impl Value {
 
     pub fn qalloc(self) -> Value {
         match self {
-            Value::Int(v) => Value::QuReg(Rc::new(RefCell::new(QuReg::new(v as usize, 0)))),
+            Value::Int(v) => {
+                assert!(v > 0);
+                Value::QuReg(Rc::new(RefCell::new(QuReg::new(v as usize, 0))))
+            },
             _ => panic!("Must use an integer to allocate a quantum register!"),
         }
     }
 
     pub fn get(self, index: Value) -> Value {
+        let idx = index.as_int() as usize;
         match self {
-            Value::Array(v) => (v.borrow())[index.as_int() as usize].clone(),
-            Value::QuReg(q) => Value::Qubit(index.as_int() as usize, q),
-            _ => panic!("Index operation only available for Array and QuReg"),
+            Value::Int(v) => Value::Int((v & (1 << idx)) >> idx),
+            Value::Array(v) => (v.borrow())[idx].clone(),
+            Value::QuReg(q) => {
+                assert!(idx < q.borrow().width());
+                Value::Qubit(idx, q)
+            },
+            _ => panic!("Index operation only available for Array, QuReg, and Int"),
         }
     }
 
