@@ -93,6 +93,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
         },
         Stmt::ForEach(id, ref e, ref b) => {
             compile_expr(e, fns, env)?;
+            env.push_scope();
             let id = env.add_id(id)?;
             let counter = env.add_tmp();
             let array = env.add_tmp();
@@ -129,6 +130,46 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 func.branch(start_loop);
                 func.bind(end_loop);
             }
+            env.pop_scope();
+        },
+        Stmt::ForLoop(id, ref s, ref e, ref b) => {
+            compile_expr(s, fns, env)?;
+            env.push_scope();
+            let id = env.add_id(id)?;
+            let end = env.add_tmp();
+            let start_loop;
+            let end_loop;
+            {
+                let func = fns.current();
+                start_loop = func.label();
+                end_loop = func.label();
+
+                func.put_local(id);
+            }
+            compile_expr(e, fns, env)?;
+            {
+                let func = fns.current();
+                func.put_local(end);
+                func.op2(BinOp::Le);
+                func.branch(end_loop);
+
+                func.bind(start_loop);
+                func.int(1);
+                func.get_local(id);
+                func.op2(BinOp::Add);
+                func.put_local(id);
+                func.discard();
+            }
+            compile_stmt(b.borrow(), fns, env)?;
+            {
+                let func = fns.current();
+                func.get_local(id);
+                func.get_local(end);
+                func.op2(BinOp::Gt);
+                func.branch(start_loop);
+                func.bind(end_loop);
+            }
+            env.pop_scope();
         },
         Stmt::Return(ref e) => {
             compile_expr(e, fns, env)?;

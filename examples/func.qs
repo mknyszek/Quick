@@ -3,10 +3,8 @@ func hi() {
 }
 
 func what(n) {
-  var i = 0;
-  while (i < n) {
+  for (i in 0..n) {
     print("what");
-    i = i + 1;
   }
   print("\n");
   false

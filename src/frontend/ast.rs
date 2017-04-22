@@ -29,6 +29,7 @@ pub enum Stmt {
     Block(LinkedList<Stmt>),
     While(Expr, Box<Stmt>),
     ForEach(StringToken, Expr, Box<Stmt>),
+    ForLoop(StringToken, Expr, Expr, Box<Stmt>),
     Expr(Expr),
     Return(Expr),
     Print(StringToken, LinkedList<Expr>),

@@ -29,7 +29,17 @@ impl_rdp! {
         program = { soi ~ stmt* ~ eoi }
 
         // Statements end with semi-colon
-        stmt = { func_stmt | fore_stmt | while_stmt | var_stmt | print_stmt | block_stmt | ret_stmt | expr_stmt }
+        stmt = {
+            func_stmt |
+            fore_stmt |
+            forl_stmt |
+            while_stmt |
+            var_stmt |
+            print_stmt |
+            block_stmt |
+            ret_stmt |
+            expr_stmt
+        }
 
         // Types of statements
         func_stmt  = { ["func"] ~ iden ~ iden_list ~ (expr ~ [";"] | block_expr) }
@@ -37,6 +47,7 @@ impl_rdp! {
         block_stmt = { blk_s ~ stmt* ~ blk_e }
         while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         fore_stmt  = { ["foreach"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [")"] ~ stmt }
+        forl_stmt  = { ["for"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [".."] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
         print_stmt = { ["print"] ~ lst_s ~ string ~ ([","] ~ arg)* ~ lst_e ~ [";"] }
         ret_stmt   = { ["ret"] ~ expr ~ [";"] }
@@ -156,6 +167,9 @@ impl_rdp! {
             (_: while_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::While(pred, Box::new(body)),
             (_: fore_stmt, &name: iden, iter: _expr(), _: stmt, body: _stmt()) => {
                 Stmt::ForEach(string_table::insert(name), iter, Box::new(body))
+            },
+            (_: forl_stmt, &name: iden, start: _expr(), end: _expr(), _: stmt, body: _stmt()) => {
+                Stmt::ForLoop(string_table::insert(name), start, end, Box::new(body))
             },
             (_: ret_stmt, value: _expr()) => Stmt::Return(value),
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
