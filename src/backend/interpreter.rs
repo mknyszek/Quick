@@ -30,17 +30,21 @@ use std::vec::Vec;
 pub fn interpret(program: Program) {
     let mut stack: Vec<Value> = Vec::with_capacity(program.call_table[0].locals);
     for _ in 0..program.call_table[0].locals {
-        stack.push(Value::Empty);
+        stack.push(Value::Null);
     }
     let mut pc: usize = 0;
     let mut fp: usize = 0;
 
     // Top-of-stack optimization
-    let mut a0 = Value::Empty;
+    let mut a0 = Value::Null;
 
     loop {
         //println!("{}: {:?}\n {:?}, {:?}", pc, program.instructions[pc], stack, a0);
         match program.instructions[pc] {
+            Bytecode::Null => {
+                stack.push(a0);
+                a0 = Value::Null;
+            },
             Bytecode::Int(v) => {
                 stack.push(a0);
                 a0 = Value::Int(v);
@@ -87,6 +91,7 @@ pub fn interpret(program: Program) {
                     BinOp::Sub => a0 = a0.sub(t0),
                     BinOp::Mul => a0 = a0.mul(t0),
                     BinOp::Div => a0 = a0.div(t0),
+                    BinOp::Rem => a0 = a0.rem(t0),
                     BinOp::Pow => a0 = a0.pow(t0),
                     BinOp::Lt => a0 = a0.lt(t0),
                     BinOp::Gt => a0 = a0.gt(t0),
@@ -125,7 +130,7 @@ pub fn interpret(program: Program) {
                     let ref fe = program.call_table[ft.to_call_index()];
                     assert_eq!(arity, fe.arity);
                     for _ in 0..(fe.locals - fe.arity) {
-                        stack.push(Value::Empty);
+                        stack.push(Value::Null);
                     }
                     let old_fp = fp;
                     fp = stack.len() - fe.locals;

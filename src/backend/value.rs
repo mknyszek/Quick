@@ -18,7 +18,7 @@
 use backend::bytecode::FunctionToken;
 
 use std::cell::RefCell;
-use std::ops::{Add, Sub, Mul, Div};
+use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::rc::Rc;
 use std::vec::Vec;
 
@@ -29,7 +29,7 @@ type QuRegObject = Rc<RefCell<QuReg>>;
 
 #[derive(Debug, Clone)]
 pub enum Value {
-    Empty,
+    Null,
     Addr(usize),
     Int(i64),
     Bool(bool),
@@ -82,6 +82,7 @@ impl Value {
     arith_method!(sub);
     arith_method!(mul);
     arith_method!(div);
+    arith_method!(rem);
 
     pub fn pow(self, other: Value) -> Value {
         Value::Float(self.as_float().powf(other.as_float()))
@@ -185,14 +186,14 @@ impl Value {
             | Value::Func(_) => match other {
                 Value::Array(_) => CatOperation::PushFront,
                 Value::Addr(_) => panic!("Shouldn't operate on Addr"),
-                Value::Empty => panic!("Shouldn't operate on Empty"),
+                Value::Null => panic!("Shouldn't operate on Null"),
                 _ => CatOperation::NewArray,
             },
             Value::QuReg(_) => match other {
                 Value::QuReg(_) => CatOperation::Tensor,
                 Value::Array(_) => CatOperation::PushFront,
                 Value::Addr(_) => panic!("Shouldn't operate on Addr"),
-                Value::Empty => panic!("Shouldn't operate on Empty"),
+                Value::Null => panic!("Shouldn't operate on Null"),
                 _ => CatOperation::NewArray,
             },
             _ => panic!("Cat operation applied to non-user type"),

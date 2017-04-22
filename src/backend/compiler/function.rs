@@ -45,6 +45,7 @@ impl Function {
 
     pub fn pos(&self) -> usize { self.bc.len() }
 
+    pub fn null(&mut self)                   { self.bc.push(Bytecode::Null);               }
     pub fn int(&mut self, v: i64)            { self.bc.push(Bytecode::Int(v));             } 
     pub fn float(&mut self, v: f64)          { self.bc.push(Bytecode::Float(v));           } 
     pub fn bool(&mut self, v: bool)          { self.bc.push(Bytecode::Bool(v));            } 

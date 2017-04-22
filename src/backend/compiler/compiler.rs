@@ -171,6 +171,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             }
             env.pop_scope();
         },
+        Stmt::UnIf(_, _) => unimplemented!(),
         Stmt::Return(ref e) => {
             compile_expr(e, fns, env)?;
             let func = fns.current();
@@ -236,6 +237,16 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
             }
             compile_expr(e.borrow(), fns, env)?;
             env.pop_scope();
+        },
+        Expr::Move(id) => match env.find(id) {
+            Some(offset) => {
+                let func = fns.current();
+                func.get_local(offset);
+                func.null();
+                func.put_local(offset);
+                func.discard();
+            },
+            None => return_error!("Identifier '{}' is not defined", string_table::get(id)),
         },
         Expr::Call(ref f, ref args) => {
             for a in args.iter() {

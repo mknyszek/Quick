@@ -38,6 +38,7 @@ impl_rdp! {
             print_stmt |
             block_stmt |
             ret_stmt |
+            uif_stmt |
             expr_stmt
         }
 
@@ -49,6 +50,7 @@ impl_rdp! {
         fore_stmt  = { ["foreach"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [")"] ~ stmt }
         forl_stmt  = { ["for"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [".."] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
+        uif_stmt   = { ["if*"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         print_stmt = { ["print"] ~ lst_s ~ string ~ ([","] ~ arg)* ~ lst_e ~ [";"] }
         ret_stmt   = { ["ret"] ~ expr ~ [";"] }
 
@@ -60,7 +62,7 @@ impl_rdp! {
             lgc  = { and | or }
             cond = { le | ge | lt | gt | eq | ne }
             sum  = { plus  | minus }
-            prod = { times | slash }
+            prod = { times | slash | perc }
             exp  = {< pow }
             bit  = { band | bor | bxor }
         }
@@ -70,6 +72,7 @@ impl_rdp! {
         sexpr = _{
             if_expr | 
             call_expr |
+            move_expr |
             unary_expr |
             alloc_expr |
             block_expr |
@@ -86,6 +89,7 @@ impl_rdp! {
         minus =  { ["-"] }
         times =  { ["*"] }
         slash =  { ["/"] }
+        perc  =  { ["%"] }
         pow   =  { ["^^"] }
         lt    =  { ["<"] }
         gt    =  { [">"] }
@@ -120,6 +124,7 @@ impl_rdp! {
         array_expr  = { arr_s ~ (arg ~ ([","] ~ arg)*)? ~ arr_e } 
         alloc_expr  = { ["|"] ~ expr ~ [">"] }
         unary_expr  = { (apply | not | bnot | minus | len) ~ rexpr }
+        move_expr   = { ["`"] ~ iden }
 
         // Helper rules
         arg       = { expr }
@@ -128,7 +133,7 @@ impl_rdp! {
         caller    = _{ iden | ["("] ~ expr ~ [")"] }
 
         // Literals and identifiers
-        iden   = @{ (['a'..'z'] | ['A'..'Z'] | ["_"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
+        iden   = @{ (['a'..'z'] | ['A'..'Z'] | ["_"] | ["@"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
         snum   = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
         float  = @{ ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
         blit   = { ["true"] | ["false"] }
@@ -172,6 +177,7 @@ impl_rdp! {
                 Stmt::ForLoop(string_table::insert(name), start, end, Box::new(body))
             },
             (_: ret_stmt, value: _expr()) => Stmt::Return(value),
+            (_: uif_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::UnIf(pred, Box::new(body)),
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
             (_: print_stmt, _: lst_s, &s: string, args: _arg_list(), _: lst_e) => {
                 let s_len = s.len();
@@ -205,6 +211,9 @@ impl_rdp! {
             },
             (_: call_expr, func: _expr(), _: lst_s, args: _arg_list(), _: lst_e) => {
                 Expr::Call(Box::new(func), args)
+            },
+            (_: move_expr, &i: iden) => {
+                Expr::Move(string_table::insert(i))
             },
             (_: assign_expr, &var: iden, value: _expr()) => {
                 Expr::Assign(string_table::insert(var), Box::new(value))
@@ -269,6 +278,7 @@ impl_rdp! {
                 Expr::BinOp(Box::new(e1), match op.rule {
                     Rule::times => BinOp::Mul,
                     Rule::slash => BinOp::Div,
+                    Rule::perc => BinOp::Rem,
                     _ => unreachable!(),
                 }, Box::new(e2))
             },

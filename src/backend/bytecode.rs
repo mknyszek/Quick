@@ -65,6 +65,7 @@ pub struct FunctionEntry {
 
 #[derive(Debug, Clone)]
 pub enum Bytecode {
+    Null,
     Int(i64),
     Float(f64),
     Bool(bool),

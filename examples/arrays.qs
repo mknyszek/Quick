@@ -7,26 +7,26 @@ func z(a, f, k) {
 }
 
 var x = 1 >< 2.5f;
-print("@\n", x);
+print("@ = [ 1 2.5f ]\n", x);
 
 x = [120] >< [120];
-print("@\n", x);
+print("@ = [ 120 120 ]\n", x);
 
 x = [120] >< 120;
-print("@\n", x);
+print("@ = [ 120 120 ]\n", x);
 
 x = 120 >< [120];
-print("@\n", x);
+print("@ = [ 120 120 ]\n", x);
 
 x = 120 >< [];
-print("@\n", x);
+print("@ = [ 120 ]\n", x);
 
 x = cat(1, 2);
-print("@ @ @\n", x, len $ x, get(x, 0));
+print("@ @ @ = [ 1 2 ] 2 1\n", x, len $ x, get(x, 0));
 put(x, 0, 3);
-print ("@\n", x);
+print ("@ = [ 3 2 ]\n", x);
 
-print("@ @ @ @\n", 2, 3, 4, z(2, 3, 4));
+print("z(@, @, @) = @ = 12\n", 2, 3, 4, z(2, 3, 4));
 
 func sum(a) {
   var s = 0;
@@ -36,4 +36,4 @@ func sum(a) {
   s
 }
 
-print("@\n", sum([9, 1, -10, 35, 3]));
+print("@ = 38\n", sum([9, 1, -10, 35, 3]));

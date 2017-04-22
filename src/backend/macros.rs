@@ -30,6 +30,11 @@ macro_rules! unreachable {
 }
 
 #[macro_export]
+macro_rules! unimplemented {
+    () => { panic!("Not yet implemented."); }
+}
+
+#[macro_export]
 macro_rules! irt_table {
     ($(fn[$s:ident] $i:ident($n:expr) $b:block)*) => {
         $(
