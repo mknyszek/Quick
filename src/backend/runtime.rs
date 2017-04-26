@@ -79,18 +79,7 @@ irt_table! {
         stack.push(Value::Float(f64::consts::E));
     }
 
-    fn[stack] hadamard(1) {
-        let s = stack.pop().unwrap();
-        match s {
-            Value::QuReg(ref q) => {
-                let l = q.borrow().width();
-                q.borrow_mut().walsh(l);
-            },
-            Value::Qubit(i, ref q) => q.borrow_mut().hadamard(i),
-            _ => panic!("Hadamard only available on quantum registers and bits."),
-        }
-        stack.push(s);
-    }
+    fn[stack] hadamard(1) { qubit_irt_fn_t!(stack, hadamard); }
 
     fn[stack] sigx(1) { qubit_irt_fn_t!(stack, sigma_x); }
     fn[stack] sigy(1) { qubit_irt_fn_t!(stack, sigma_y); }

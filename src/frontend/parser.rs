@@ -79,6 +79,7 @@ impl_rdp! {
             array_expr |
             assign_expr |
             put_expr |
+            slice_expr |
             get_expr
         }
 
@@ -119,8 +120,9 @@ impl_rdp! {
         block_expr  = { blk_s ~ stmt* ~ expr ~ blk_e }
         call_expr   = { caller ~ arg_list }
         assign_expr = { iden ~ ["="] ~ expr }
-        get_expr    = { iden ~ ["["] ~ expr ~ ["]"] }
-        put_expr    = { iden ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
+        get_expr    = { caller ~ ["["] ~ expr ~ ["]"] }
+        put_expr    = { caller ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
+        slice_expr  = { caller ~ ["["] ~ expr ~ [":"] ~ expr ~ ["]"] }
         array_expr  = { arr_s ~ (arg ~ ([","] ~ arg)*)? ~ arr_e } 
         alloc_expr  = { ["|"] ~ expr ~ [">"] }
         unary_expr  = { (apply | not | bnot | minus | len) ~ rexpr }
@@ -130,7 +132,7 @@ impl_rdp! {
         arg       = { expr }
         iden_list = _{ ["("] ~ (iden ~ ([","] ~ iden)*)? ~ [")"] }
         arg_list  = _{ lst_s ~ (arg ~ ([","] ~ arg)*)? ~ lst_e }
-        caller    = _{ iden | ["("] ~ expr ~ [")"] }
+        caller    = _{ array_expr | block_expr | move_expr | ["("] ~ expr ~ [")"] | lit | iden }
 
         // Literals and identifiers
         iden   = @{ (['a'..'z'] | ['A'..'Z'] | ["_"] | ["@"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
@@ -218,11 +220,14 @@ impl_rdp! {
             (_: assign_expr, &var: iden, value: _expr()) => {
                 Expr::Assign(string_table::insert(var), Box::new(value))
             },
-            (_: get_expr, &var: iden, index: _expr()) => {
-                Expr::Get(string_table::insert(var), Box::new(index))
+            (_: get_expr, a: _expr(), index: _expr()) => {
+                Expr::BinOp(Box::new(a), BinOp::Get, Box::new(index))
             },
-            (_: put_expr, &var: iden, index: _expr(), value: _expr()) => {
-                Expr::Put(string_table::insert(var), Box::new(index), Box::new(value))
+            (_: slice_expr, a: _expr(), index1: _expr(), index2: _expr()) => {
+                Expr::TriOp(Box::new(a), TriOp::Slice, Box::new(index1), Box::new(index2))
+            },
+            (_: put_expr, a: _expr(), index: _expr(), value: _expr()) => {
+                Expr::TriOp(Box::new(a), TriOp::Put, Box::new(index), Box::new(value))
             },
             (_: array_expr, _: arr_s, args: _arg_list(), _: arr_e) => {
                 Expr::Array(args)

@@ -17,7 +17,7 @@
 
 use std::collections::LinkedList;
 
-use util::ops::{UnOp, BinOp};
+use util::ops::{UnOp, BinOp, TriOp};
 use util::string_table::StringToken;
 
 pub type Ast = LinkedList<Stmt>;
@@ -49,9 +49,8 @@ pub enum Expr {
     Move(StringToken),
     Call(Bxpr, LinkedList<Expr>),
     Assign(StringToken, Bxpr),
-    Get(StringToken, Bxpr),
-    Put(StringToken, Bxpr, Bxpr),
     Array(LinkedList<Expr>),
     UnOp(UnOp, Bxpr),
     BinOp(Bxpr, BinOp, Bxpr),
+    TriOp(Bxpr, TriOp, Bxpr, Bxpr),
 }

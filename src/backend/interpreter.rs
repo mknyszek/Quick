@@ -18,13 +18,12 @@
 use util::ops::*;
 use util::string_table;
 
+use backend::array::ArrayObject;
 use backend::bytecode::*;
 use backend::runtime::{self, IRT_TABLE};
 use backend::value::Value;
 
 use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::vec::Vec;
 
 pub fn interpret(program: Program) {
@@ -75,13 +74,14 @@ pub fn interpret(program: Program) {
                 } else {
                     stack.push(a0);
                 }
-                a0 = Value::Array(Rc::new(RefCell::new(v)));
+                a0 = Value::Array(ArrayObject::from_vec(v));
             },
             Bytecode::Op3(op) => {
                 let t0 = stack.pop().unwrap();
                 let t1 = stack.pop().unwrap();
                 match op {
                     TriOp::Put => a0 = a0.put(t0, t1),
+                    TriOp::Slice => a0 = a0.slice(t0, t1),
                 }
             },
             Bytecode::Op2(op) => {

@@ -262,23 +262,6 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
             }
         },
-        Expr::Get(id, ref idx) => {
-            compile_expr(idx.borrow(), fns, env)?;
-            match env.find(id) {
-                Some(offset) => fns.current().get_local(offset),
-                None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
-            }
-            fns.current().op2(BinOp::Get);
-        },
-        Expr::Put(id, ref idx, ref e) => {
-            compile_expr(e.borrow(), fns, env)?;
-            compile_expr(idx.borrow(), fns, env)?;
-            match env.find(id) {
-                Some(offset) => fns.current().get_local(offset),
-                None => return_error!("Identifier '{}' not found in scope", string_table::get(id)),
-            }
-            fns.current().op3(TriOp::Put);
-        },
         Expr::Array(ref args) => {
             for a in args.iter() {
                 compile_expr(a, fns, env)?;
@@ -302,6 +285,12 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
             } else {
                 fns.current().op2(op);
             }
+        },
+        Expr::TriOp(ref e1, op, ref e2, ref e3) => {
+            compile_expr(e3.borrow(), fns, env)?;
+            compile_expr(e2.borrow(), fns, env)?;
+            compile_expr(e1.borrow(), fns, env)?;
+            fns.current().op3(op);
         }
     }
     Ok(())

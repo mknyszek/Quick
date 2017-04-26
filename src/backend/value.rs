@@ -15,18 +15,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use backend::array::ArrayObject;
 use backend::bytecode::FunctionToken;
 
 use std::cell::RefCell;
 use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::rc::Rc;
-use std::vec::Vec;
 
 use libquantum::QuReg;
 
-type ArrayObject = Rc<RefCell<Vec<Value>>>;
 type QuRegObject = Rc<RefCell<QuReg>>;
 
+// TODO: This value representation is grossly suboptimal, but is good for
+// quickly iterating. Try to replace this with something more general in
+// the future. 
 #[derive(Debug, Clone)]
 pub enum Value {
     Null,
@@ -37,15 +39,8 @@ pub enum Value {
     Func(FunctionToken),
     Array(ArrayObject),
     QuReg(QuRegObject),
+    QuSlice(usize, usize, QuRegObject),
     Qubit(usize, QuRegObject),
-}
-
-enum CatOperation {
-    MergeArrays,
-    PushBack,
-    PushFront,
-    NewArray,
-    Tensor
 }
 
 macro_rules! arith_method {
@@ -133,8 +128,9 @@ impl Value {
 
     pub fn len(self) -> Value {
         match self {
-            Value::Array(a) => Value::Int(a.borrow().len() as i64),
+            Value::Array(a) => Value::Int(a.len() as i64),
             Value::QuReg(q) => Value::Int(q.borrow().width() as i64),
+            Value::QuSlice(lb, ub, _) => Value::Int((ub - lb) as i64),
             _ => panic!("Length operation only available for Array"),
         }
     }
@@ -153,88 +149,63 @@ impl Value {
         let idx = index.as_int() as usize;
         match self {
             Value::Int(v) => Value::Int((v & (1 << idx)) >> idx),
-            Value::Array(v) => (v.borrow())[idx].clone(),
+            Value::Array(v) => v.get(idx),
             Value::QuReg(q) => {
                 assert!(idx < q.borrow().width());
                 Value::Qubit(idx, q)
             },
-            _ => panic!("Index operation only available for Array, QuReg, and Int"),
+            Value::QuSlice(_, ub, q) => {
+                assert!(idx < ub);
+                Value::Qubit(idx, q)
+            },
+            _ => panic!("Get operation only available for Array, QuReg, and Int"),
         }
     }
 
     pub fn put(self, index: Value, value: Value) -> Value {
+        let idx = index.as_int() as usize;
         match self {
-            Value::Array(v) => (v.borrow_mut())[index.as_int() as usize] = value.clone(),
-            _ => panic!("Index operation only available for Array"),
+            Value::Array(mut v) => v.put(idx, value.clone()),
+            _ => panic!("Put operation only available for Array"),
         }
         value
     }
+    
+    pub fn slice(self, index1: Value, index2: Value) -> Value {
+        let idx1 = index1.as_int() as usize;
+        let idx2 = index2.as_int() as usize;
+        assert!(idx1 < idx2);
+        match self {
+            Value::Array(v) => v.slice(idx1, idx2),
+            Value::QuReg(q) => {
+                assert!(idx2 < q.borrow().width());
+                Value::QuSlice(idx1, idx2, q)
+            },
+            Value::QuSlice(lb, ub, q) => {
+                assert!(idx2 <= ub - lb);
+                Value::QuSlice(idx1, idx2, q)
+            }, 
+            _ => panic!("Slice operation only available for Array, QuReg, QuSlice"),
+        }
+    }
 
+    // TODO: Improve error message when more than one strong reference
+    // is found on self or other.
     pub fn cat(self, other: Value) -> Value {
-        let logic = match self {
-            Value::Array(_) => match other {
-                Value::Array(_) => CatOperation::MergeArrays,
-                Value::Int(_) => CatOperation::PushBack,
-                Value::Float(_) => CatOperation::PushBack,
-                Value::Bool(_) => CatOperation::PushBack,
-                Value::QuReg(_) => CatOperation::PushBack,
-                _ => panic!("Cat operation applied to non-user type"),
-            },
-            Value::Int(_) 
-            | Value::Float(_) 
-            | Value::Bool(_) 
-            | Value::Func(_) => match other {
-                Value::Array(_) => CatOperation::PushFront,
-                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
-                Value::Null => panic!("Shouldn't operate on Null"),
-                _ => CatOperation::NewArray,
-            },
-            Value::QuReg(_) => match other {
-                Value::QuReg(_) => CatOperation::Tensor,
-                Value::Array(_) => CatOperation::PushFront,
-                Value::Addr(_) => panic!("Shouldn't operate on Addr"),
-                Value::Null => panic!("Shouldn't operate on Null"),
-                _ => CatOperation::NewArray,
-            },
-            _ => panic!("Cat operation applied to non-user type"),
-        };
-        match logic {
-            CatOperation::MergeArrays => {
-                if let Value::Array(ref a1) = self {
-                    let mut a1_inner = a1.borrow_mut();
-                    if let Value::Array(ref a2) = other {
-                        for v in a2.borrow().iter() {
-                            a1_inner.push(v.clone());
-                        }
-                    } else { unreachable!(); }
-                } else { unreachable!(); }
-                self
-            },
-            CatOperation::PushBack => {
-                match self {
-                    Value::Array(ref a) => a.borrow_mut().push(other),
-                    _ => unreachable!(),
-                }
-                self
-            },
-            CatOperation::PushFront => {
-                match other {
-                    Value::Array(ref a) => a.borrow_mut().push(self),
-                    _ => unreachable!(),
-                }
-                other
-            },
-            CatOperation::NewArray => {
-                Value::Array(Rc::new(RefCell::new(vec![self, other])))
-            },
-            CatOperation::Tensor => {
-                // TODO: Improve error message when more than one strong reference
-                // is found on self or other.
+        if let Value::Array(mut v) = self {
+            v.push_back(other);
+            return Value::Array(v);
+        } else if let Value::Array(mut v) = other {
+            v.push_front(self);
+            return Value::Array(v);
+        } else if let Value::QuReg(_) = self {
+            if let Value::QuReg(_) = other {
                 let q = Rc::try_unwrap(self.as_qureg()).unwrap().into_inner();
                 let o = Rc::try_unwrap(other.as_qureg()).unwrap().into_inner();
-                Value::QuReg(Rc::new(RefCell::new(q.tensor(o))))
-            },
+                return Value::QuReg(Rc::new(RefCell::new(q.tensor(o))));
+            }
         }
+        Value::Array(ArrayObject::from_vec(vec![self, other]))
     }
 
     pub fn as_int(self) -> i64 {
@@ -288,17 +259,7 @@ impl Value {
             Value::Bool(v) => v.to_string(),
             Value::Int(v) => v.to_string(),
             Value::Float(v) => v.to_string(),
-            Value::Array(v) => {
-                let mut out = String::new();
-                out.push('[');
-                out.push(' ');
-                for i in v.borrow().iter() {
-                    out.push_str(&(i.clone().as_string())[..]);
-                    out.push(' ');
-                }
-                out.push(']');
-                out
-            },
+            Value::Array(v) => v.to_string(),
             _ => panic!("String representation not available for other types"),
         }
     }

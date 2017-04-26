@@ -75,6 +75,12 @@ macro_rules! qubit_irt_fn_t {
                     qm.$f(i);
                 }
             },
+            Value::QuSlice(lb, ub, ref q) => {
+                let mut qm = q.borrow_mut();
+                for i in lb..ub {
+                    qm.$f(i);
+                }
+            },
             Value::Qubit(i, ref q) => q.borrow_mut().$f(i),
             _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
         }
@@ -93,6 +99,13 @@ macro_rules! qubit_irt_fn_t_g {
                 let mut qm = q.borrow_mut();
                 let gamma = g.as_float();
                 for i in 0..l {
+                    qm.$f(i, gamma as f32);
+                }
+            },
+            Value::QuSlice(lb, ub, ref q) => {
+                let mut qm = q.borrow_mut();
+                let gamma = g.as_float();
+                for i in lb..ub {
                     qm.$f(i, gamma as f32);
                 }
             },

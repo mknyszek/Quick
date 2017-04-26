@@ -18,6 +18,7 @@
 #[derive(Debug, Clone, Copy)]
 pub enum TriOp {
     Put,
+    Slice,
 }
 
 #[derive(Debug, Clone, Copy)]

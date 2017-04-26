@@ -18,6 +18,7 @@
 #[macro_use]
 mod macros;
 mod bytecode;
+mod array;
 mod value;
 mod runtime;
 pub mod compiler;
