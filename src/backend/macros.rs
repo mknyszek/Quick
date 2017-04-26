@@ -64,54 +64,48 @@ macro_rules! math_irt_fn {
 }
 
 #[macro_export]
-macro_rules! qubit_irt_fn_t {
-    ($stack:ident, $f:ident) => {
-        let s = $stack.pop().unwrap();
-        match s {
-            Value::QuReg(ref q) => {
-                let l = q.borrow().width();
-                let mut qm = q.borrow_mut();
-                for i in 0..l {
-                    qm.$f(i);
-                }
-            },
-            Value::QuSlice(lb, ub, ref q) => {
-                let mut qm = q.borrow_mut();
-                for i in lb..ub {
-                    qm.$f(i);
-                }
-            },
-            Value::Qubit(i, ref q) => q.borrow_mut().$f(i),
-            _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
+macro_rules! qureg_fn_t {
+    ($f:ident) => {
+        pub fn $f(&mut self) {
+            let mut qm = self.qureg.borrow_mut();
+            for i in self.start..self.end {
+                qm.$f(i);
+            }
         }
-        $stack.push(s);
     }
 }
 
 #[macro_export]
-macro_rules! qubit_irt_fn_t_g {
+macro_rules! qureg_fn_t_g {
+    ($f:ident) => {
+        pub fn $f(&mut self, gamma: f64) {
+            let mut qm = self.qureg.borrow_mut();
+            for i in self.start..self.end {
+                qm.$f(i, gamma as f32);
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! qureg_irt_fn_t {
+    ($stack:ident, $f:ident) => {
+        let s = $stack.pop().unwrap();
+        match s {
+            Value::QuReg(mut q) => { q.$f(); $stack.push(Value::QuReg(q)); },
+            _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! qureg_irt_fn_t_g {
     ($stack:ident, $f:ident) => {
         let g = $stack.pop().unwrap();
         let s = $stack.pop().unwrap();
         match s {
-            Value::QuReg(ref q) => {
-                let l = q.borrow().width();
-                let mut qm = q.borrow_mut();
-                let gamma = g.as_float();
-                for i in 0..l {
-                    qm.$f(i, gamma as f32);
-                }
-            },
-            Value::QuSlice(lb, ub, ref q) => {
-                let mut qm = q.borrow_mut();
-                let gamma = g.as_float();
-                for i in lb..ub {
-                    qm.$f(i, gamma as f32);
-                }
-            },
-            Value::Qubit(i, ref q) => q.borrow_mut().$f(i, g.as_float() as f32),
+            Value::QuReg(mut q) => { q.$f(g.as_float()); $stack.push(Value::QuReg(q)); },
             _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
         }
-        $stack.push(s);
     }
 }

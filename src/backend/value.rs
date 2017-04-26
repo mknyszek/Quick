@@ -16,15 +16,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use backend::array::ArrayObject;
+use backend::qureg::QuRegObject;
 use backend::bytecode::FunctionToken;
 
-use std::cell::RefCell;
 use std::ops::{Add, Sub, Mul, Div, Rem};
-use std::rc::Rc;
-
-use libquantum::QuReg;
-
-type QuRegObject = Rc<RefCell<QuReg>>;
 
 // TODO: This value representation is grossly suboptimal, but is good for
 // quickly iterating. Try to replace this with something more general in
@@ -39,8 +34,6 @@ pub enum Value {
     Func(FunctionToken),
     Array(ArrayObject),
     QuReg(QuRegObject),
-    QuSlice(usize, usize, QuRegObject),
-    Qubit(usize, QuRegObject),
 }
 
 macro_rules! arith_method {
@@ -129,9 +122,8 @@ impl Value {
     pub fn len(self) -> Value {
         match self {
             Value::Array(a) => Value::Int(a.len() as i64),
-            Value::QuReg(q) => Value::Int(q.borrow().width() as i64),
-            Value::QuSlice(lb, ub, _) => Value::Int((ub - lb) as i64),
-            _ => panic!("Length operation only available for Array"),
+            Value::QuReg(q) => Value::Int(q.len() as i64),
+            _ => panic!("Length operation not available for {:?}", &self),
         }
     }
 
@@ -139,7 +131,7 @@ impl Value {
         match self {
             Value::Int(v) => {
                 assert!(v > 0);
-                Value::QuReg(Rc::new(RefCell::new(QuReg::new(v as usize, 0))))
+                Value::QuReg(QuRegObject::new(v as usize))
             },
             _ => panic!("Must use an integer to allocate a quantum register!"),
         }
@@ -150,15 +142,8 @@ impl Value {
         match self {
             Value::Int(v) => Value::Int((v & (1 << idx)) >> idx),
             Value::Array(v) => v.get(idx),
-            Value::QuReg(q) => {
-                assert!(idx < q.borrow().width());
-                Value::Qubit(idx, q)
-            },
-            Value::QuSlice(_, ub, q) => {
-                assert!(idx < ub);
-                Value::Qubit(idx, q)
-            },
-            _ => panic!("Get operation only available for Array, QuReg, and Int"),
+            Value::QuReg(q) => q.get(idx),
+            _ => panic!("Get operation not available for {:?}", &self),
         }
     }
 
@@ -166,7 +151,7 @@ impl Value {
         let idx = index.as_int() as usize;
         match self {
             Value::Array(mut v) => v.put(idx, value.clone()),
-            _ => panic!("Put operation only available for Array"),
+            _ => panic!("Put operation not available for {:?}", &self),
         }
         value
     }
@@ -174,18 +159,10 @@ impl Value {
     pub fn slice(self, index1: Value, index2: Value) -> Value {
         let idx1 = index1.as_int() as usize;
         let idx2 = index2.as_int() as usize;
-        assert!(idx1 < idx2);
         match self {
             Value::Array(v) => v.slice(idx1, idx2),
-            Value::QuReg(q) => {
-                assert!(idx2 < q.borrow().width());
-                Value::QuSlice(idx1, idx2, q)
-            },
-            Value::QuSlice(lb, ub, q) => {
-                assert!(idx2 <= ub - lb);
-                Value::QuSlice(idx1, idx2, q)
-            }, 
-            _ => panic!("Slice operation only available for Array, QuReg, QuSlice"),
+            Value::QuReg(q) => q.slice(idx1, idx2),
+            _ => panic!("Slice operation not available for {:?}", &self),
         }
     }
 
@@ -198,12 +175,6 @@ impl Value {
         } else if let Value::Array(mut v) = other {
             v.push_front(self);
             return Value::Array(v);
-        } else if let Value::QuReg(_) = self {
-            if let Value::QuReg(_) = other {
-                let q = Rc::try_unwrap(self.as_qureg()).unwrap().into_inner();
-                let o = Rc::try_unwrap(other.as_qureg()).unwrap().into_inner();
-                return Value::QuReg(Rc::new(RefCell::new(q.tensor(o))));
-            }
         }
         Value::Array(ArrayObject::from_vec(vec![self, other]))
     }
@@ -260,7 +231,7 @@ impl Value {
             Value::Int(v) => v.to_string(),
             Value::Float(v) => v.to_string(),
             Value::Array(v) => v.to_string(),
-            _ => panic!("String representation not available for other types"),
+            _ => panic!("String representation not available for {:?}", &self),
         }
     }
 }

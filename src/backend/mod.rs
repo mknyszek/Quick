@@ -19,6 +19,7 @@
 mod macros;
 mod bytecode;
 mod array;
+mod qureg;
 mod value;
 mod runtime;
 pub mod compiler;
