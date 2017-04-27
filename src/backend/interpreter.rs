@@ -18,10 +18,9 @@
 use util::ops::*;
 use util::string_table;
 
-use backend::array::ArrayObject;
 use backend::bytecode::*;
 use backend::runtime::{self, IRT_TABLE};
-use backend::value::Value;
+use backend::runtime::value::Value;
 
 use std::borrow::Borrow;
 use std::vec::Vec;
@@ -75,7 +74,7 @@ pub fn interpret(program: Program) {
                 } else {
                     stack.push(a0);
                 }
-                a0 = Value::Array(ArrayObject::from_vec(v));
+                a0 = Value::new_array(v);
             },
             Bytecode::Op3(op) => {
                 let t0 = stack.pop().unwrap();

@@ -18,7 +18,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use backend::value::Value;
+use backend::runtime::value::Value;
 
 use libquantum::QuReg;
 

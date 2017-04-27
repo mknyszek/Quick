@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::vec::Vec;
 
-use backend::value::Value;
+use backend::runtime::value::Value;
 
 #[derive(Debug, Clone)]
 pub struct ArrayObject {

@@ -15,8 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use backend::array::ArrayObject;
-use backend::qureg::QuRegObject;
+use backend::runtime::array::ArrayObject;
+use backend::runtime::qureg::QuRegObject;
 use backend::bytecode::FunctionToken;
 
 use std::ops::{Add, Sub, Mul, Div, Rem};
@@ -65,6 +65,10 @@ macro_rules! cmp_method {
 }
 
 impl Value {
+
+    pub fn new_array(v: Vec<Value>) -> Value {
+        Value::Array(ArrayObject::from_vec(v))
+    }
 
     arith_method!(add);
     arith_method!(sub);
