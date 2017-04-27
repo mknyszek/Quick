@@ -54,14 +54,16 @@ impl Function {
     pub fn op3(&mut self, op: TriOp)         { self.bc.push(Bytecode::Op3(op));            } 
     pub fn op2(&mut self, op: BinOp)         { self.bc.push(Bytecode::Op2(op));            } 
     pub fn op1(&mut self, op: UnOp)          { self.bc.push(Bytecode::Op1(op));            } 
-    pub fn call(&mut self, arity: usize)     { self.bc.push(Bytecode::Call(arity));        } 
+    pub fn call(&mut self, arity: usize)     { self.bc.push(Bytecode::Call(Call::Normal,  arity)); } 
+    pub fn rcall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Reverse, arity)); } 
+    pub fn icall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Inverse, arity)); } 
     pub fn return_(&mut self, o: usize)      { self.bc.push(Bytecode::Return(o));          }
     pub fn discard(&mut self)                { self.bc.push(Bytecode::Discard);            }
     pub fn put_local(&mut self, o: usize)    { self.bc.push(Bytecode::PutLocal(o));        }
     pub fn get_local(&mut self, o: usize)    { self.bc.push(Bytecode::GetLocal(o));        }
     pub fn jump(&mut self, o: usize)         { self.bc.push(Bytecode::Jump(o as isize));   }
     pub fn branch(&mut self, o: usize)       { self.bc.push(Bytecode::Branch(o as isize)); }
-    pub fn print(&mut self, st: StringToken, n: usize) { self.bc.push(Bytecode::Print(st, n)); }
+    pub fn print(&mut self, st: StringToken, n: usize) { self.bc.push(Bytecode::Print(st, n));   }
 
     pub fn label(&mut self) -> LabelToken { 
         self.labels.push(None);

@@ -112,7 +112,13 @@ impl Value {
     }
 
     pub fn not(self) -> Value {
-        Value::Bool(!self.as_bool())
+        match self {
+            Value::QuReg(mut q) => {
+                q.sigma_x();
+                Value::QuReg(q)
+            },
+            _ => Value::Bool(!self.as_bool()),
+        }
     }
 
     pub fn bnot(self) -> Value {

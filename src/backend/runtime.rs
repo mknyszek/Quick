@@ -20,8 +20,14 @@ use backend::value::Value;
 use std::f64;
 use std::vec::Vec;
 
+pub struct IRTEntry {
+    pub irr: &'static Fn(&mut Vec<Value>),
+    pub rev: &'static Fn(&mut Vec<Value>, &mut Vec<Value>),
+    pub inv: &'static Fn(&mut Vec<Value>, &mut Vec<Value>)
+}
+
 pub struct IRTFunction {
-    pub entry: fn(&mut Vec<Value>),
+    pub entry: IRTEntry,
     pub arity: usize,
 }
 
@@ -77,15 +83,7 @@ irt_table! {
 
     fn[stack] e(0) {
         stack.push(Value::Float(f64::consts::E));
-    }
-
-    fn[stack] cnot(3) {
-        let t = stack.pop().unwrap().as_int();
-        let c = stack.pop().unwrap().as_int();
-        let mut q = stack.pop().unwrap().as_qureg();
-        q.cnot(c as usize, t as usize);
-        stack.push(q.get(t as usize));
-    }
+    } 
 
     fn[stack] hadamard(1) { qureg_irt_fn_t!(stack, hadamard); }
 
@@ -100,21 +98,26 @@ irt_table! {
     fn[stack] phase(2)   { qureg_irt_fn_t_g!(stack, phase); }
     fn[stack] phaseby(2) { qureg_irt_fn_t_g!(stack, phaseby); }
 
-    fn[stack] cphase(3) {
-        let t = stack.pop().unwrap().as_int();
-        let c = stack.pop().unwrap().as_int();
-        let mut q = stack.pop().unwrap().as_qureg();
-        q.cphase(c as usize, t as usize);
-        stack.push(q.get(t as usize));
+    fn[stack] cnot(2) {
+        let mut t = stack.pop().unwrap().as_qureg();
+        let mut c = stack.pop().unwrap().as_qureg();
+        t.cnot(&mut c);
+        stack.push(Value::QuReg(t));
     }
 
-    fn[stack] cphaseby(4) {
+    fn[stack] cphase(2) {
+        let mut t = stack.pop().unwrap().as_qureg();
+        let mut c = stack.pop().unwrap().as_qureg();
+        t.cphase(&mut c);
+        stack.push(Value::QuReg(t));
+    }
+
+    fn[stack] cphaseby(3) {
         let g = stack.pop().unwrap().as_float();
-        let t = stack.pop().unwrap().as_int();
-        let c = stack.pop().unwrap().as_int();
-        let mut q = stack.pop().unwrap().as_qureg();
-        q.cphaseby(c as usize, t as usize, g);
-        stack.push(q.get(t as usize));
+        let mut t = stack.pop().unwrap().as_qureg();
+        let mut c = stack.pop().unwrap().as_qureg();
+        t.cphaseby(&mut c, g);
+        stack.push(Value::QuReg(t));
     }
 
     fn[stack] measure(1) {

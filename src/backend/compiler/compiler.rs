@@ -295,3 +295,97 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
     }
     Ok(())
 }
+
+/*
+fn compile_qcond(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) -> Result<(), String> {
+    match *expr {
+        Expr::Int(i) => fns.current().int(i),
+        Expr::Bool(b) => fns.current().bool(b),
+        Expr::Ref(id) => match env.find(id) {
+            Some(offset) => fns.current().get_local(offset),
+            None => match fns.lookup(id) {
+                Some(ft) => fns.current().func(ft),
+                None => return_error!("Identifier '{}' is not defined", string_table::get(id)),
+            },
+        },
+        Expr::Call(ref f, ref args) => {
+            for a in args.iter() {
+                compile_expr(a, fns, env)?;
+            }
+            compile_expr(f.borrow(), fns, env)?;
+            fns.current().call(args.len());
+        },
+        Expr::UnOp(op, ref e) => {
+            compile_expr(e.borrow(), fns, env)?;
+            if let UnOp::Invoke = op {
+                fns.current().call(0);
+            } else {
+                fns.current().op1(op);
+            }
+        },
+        Expr::BinOp(ref e1, op, ref e2) => {
+            compile_expr(e2.borrow(), fns, env)?;
+            compile_expr(e1.borrow(), fns, env)?;
+            if let BinOp::Apply = op {
+                fns.current().call(1);
+            } else {
+                fns.current().op2(op);
+            }
+        },
+        Expr::TriOp(ref e1, op, ref e2, ref e3) => {
+            compile_expr(e3.borrow(), fns, env)?;
+            compile_expr(e2.borrow(), fns, env)?;
+            compile_expr(e1.borrow(), fns, env)?;
+            fns.current().op3(op);
+        }
+        _ => panic!("Feature {:?} is not reversible.", expr),
+    }
+    Ok(())
+}
+
+fn compile_iqcond(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) -> Result<(), String> {
+    match *expr {
+        Expr::Int(i) => fns.current().int(i),
+        Expr::Bool(b) => fns.current().bool(b),
+        Expr::Ref(id) => match env.find(id) {
+            Some(offset) => fns.current().get_local(offset),
+            None => match fns.lookup(id) {
+                Some(ft) => fns.current().func(ft),
+                None => return_error!("Identifier '{}' is not defined", string_table::get(id)),
+            },
+        },
+        Expr::Call(ref f, ref args) => {
+            for a in args.iter() {
+                compile_expr(a, fns, env)?;
+            }
+            compile_expr(f.borrow(), fns, env)?;
+            fns.current().call(args.len());
+        },
+        Expr::UnOp(op, ref e) => {
+            compile_expr(e.borrow(), fns, env)?;
+            if let UnOp::Invoke = op {
+                fns.current().call(0);
+            } else {
+                fns.current().op1(op);
+            }
+        },
+        Expr::BinOp(ref e1, op, ref e2) => {
+            compile_expr(e2.borrow(), fns, env)?;
+            compile_expr(e1.borrow(), fns, env)?;
+            if let BinOp::Apply = op {
+                fns.current().call(1);
+            } else {
+                fns.current().op2(op);
+            }
+        },
+        Expr::TriOp(ref e1, op, ref e2, ref e3) => {
+            compile_expr(e3.borrow(), fns, env)?;
+            compile_expr(e2.borrow(), fns, env)?;
+            compile_expr(e1.borrow(), fns, env)?;
+            fns.current().op3(op);
+        }
+        _ => panic!("Feature {:?} is not reversible.", expr),
+    }
+    Ok(())
+}
+*/

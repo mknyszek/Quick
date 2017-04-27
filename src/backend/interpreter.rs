@@ -28,6 +28,7 @@ use std::vec::Vec;
 
 pub fn interpret(program: Program) {
     let mut stack: Vec<Value> = Vec::with_capacity(program.call_table[0].locals);
+    let mut rstack: Vec<Value> = Vec::new();
     for _ in 0..program.call_table[0].locals {
         stack.push(Value::Null);
     }
@@ -119,12 +120,16 @@ pub fn interpret(program: Program) {
                     _ => panic!("Operator {:?} should have been compiled out.", op),
                 }
             },
-            Bytecode::Call(arity) => {
+            Bytecode::Call(kind, arity) => {
                 let ft = a0.as_func();
                 if ft.is_native() {
                     let ref nfe = IRT_TABLE[ft.to_native_index()];
                     assert_eq!(arity, nfe.arity);
-                    (nfe.entry)(&mut stack);
+                    match kind {
+                        Call::Normal => (nfe.entry.irr)(&mut stack),
+                        Call::Reverse => (nfe.entry.rev)(&mut stack, &mut rstack),
+                        Call::Inverse => (nfe.entry.inv)(&mut stack, &mut rstack),
+                    }
                     a0 = stack.pop().unwrap();
                 } else {
                     let ref fe = program.call_table[ft.to_call_index()];

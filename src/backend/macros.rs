@@ -35,18 +35,35 @@ macro_rules! unimplemented {
 }
 
 #[macro_export]
-macro_rules! irt_table {
-    ($(fn[$s:ident] $i:ident($n:expr) $b:block)*) => {
-        $(
-        pub fn $i($s: &mut Vec<Value>) {
-            $b
+macro_rules! invalid_call {
+    ($f:ident) => { panic!("Attempted to call function {} as reversible.", stringify!($f)) }
+}
+
+macro_rules! irt_entry {
+    ($f:ident, $s:ident, $b:block) => {
+        IRTEntry {
+            irr: &|$s| $b,
+            rev: &|_, _| invalid_call!($f),
+            inv: &|_, _| invalid_call!($f),
         }
-        )*
-        pub static IRT_STRINGS: &'static [&'static str] = &[
+    };
+    ($f:ident, $s:ident, [$rs:ident] { normal => $n:stmt; reverse => $r:stmt; inverse => $i:stmt; }) => {
+        IRTEntry {
+            irr: &|$s| $n,
+            rev: &|$s, $rs| $r,
+            inv: &|$s, $rs| $i,
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! irt_table {
+    ($(fn[$s:ident] $i:ident($n:expr) $t:tt )*) => {
+        pub const IRT_STRINGS: &'static [&'static str] = &[
             $(stringify!($i)),*
         ];
-        pub static IRT_TABLE: &'static [IRTFunction] = &[
-            $(IRTFunction { entry: $i, arity: $n }),* 
+        pub const IRT_TABLE: &'static [IRTFunction] = &[
+            $(IRTFunction { entry: irt_entry!($i, $s, $t), arity: $n }),* 
         ];
     }
 }

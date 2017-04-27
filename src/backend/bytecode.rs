@@ -63,6 +63,13 @@ pub struct FunctionEntry {
     pub locals: usize
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum Call {
+    Normal,
+    Reverse,
+    Inverse
+}
+
 #[derive(Debug, Clone)]
 pub enum Bytecode {
     Null,
@@ -74,7 +81,7 @@ pub enum Bytecode {
     Op3(TriOp),
     Op2(BinOp),
     Op1(UnOp),
-    Call(usize),
+    Call(Call, usize),
     Discard,
     Return(usize),
     PutLocal(usize),

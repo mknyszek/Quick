@@ -58,11 +58,7 @@ impl QuRegObject {
             end: self.start + ub,
             qureg: self.qureg.clone(),
         })
-    }
-
-    pub fn cnot(&mut self, control: usize, target: usize) {
-        self.qureg.borrow_mut().cnot(control, target);
-    }
+    } 
 
     qureg_fn_t!(hadamard);
     qureg_fn_t!(sigma_x);
@@ -75,12 +71,37 @@ impl QuRegObject {
     qureg_fn_t_g!(phase);
     qureg_fn_t_g!(phaseby);
 
-    pub fn cphase(&mut self, control: usize, target: usize) {
-        self.qureg.borrow_mut().cond_phase(control, target);
+    pub fn cnot(&mut self, control: &mut QuRegObject) {
+        //assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        let mut qm = self.qureg.borrow_mut();
+        for i in control.start..control.end {
+            for j in self.start..self.end {
+                assert!(i != j);
+                qm.cnot(i, j);
+            }
+        }
     }
 
-    pub fn cphaseby(&mut self, control: usize, target: usize, gamma: f64) {
-        self.qureg.borrow_mut().cond_phaseby(control, target, gamma as f32);
+    pub fn cphase(&mut self, control: &mut QuRegObject) {
+        //assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        let mut qm = self.qureg.borrow_mut();
+        for i in control.start..control.end {
+            for j in self.start..self.end {
+                assert!(i != j);
+                qm.cond_phase(i, j);
+            }
+        }
+    }
+
+    pub fn cphaseby(&mut self, control: &mut QuRegObject, gamma: f64) {
+        //assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        let mut qm = self.qureg.borrow_mut();
+        for i in control.start..control.end {
+            for j in self.start..self.end {
+                assert!(i != j);
+                qm.cond_phaseby(i, j, gamma as f32);
+            }
+        }
     }
 
     pub fn measure(&mut self) -> i64 {
