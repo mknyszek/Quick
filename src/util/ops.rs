@@ -43,9 +43,6 @@ pub enum BinOp {
     Get,
     Cat,
     Apply,
-    QAnd,
-    QOr,
-    QNot,
 }
 
 #[derive(Debug, Clone, Copy)]

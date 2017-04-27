@@ -65,7 +65,7 @@ pub struct FunctionEntry {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Call {
-    Normal,
+    Regular,
     Reverse,
     Inverse
 }

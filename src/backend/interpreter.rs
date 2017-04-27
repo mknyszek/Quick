@@ -27,7 +27,7 @@ use std::vec::Vec;
 
 pub fn interpret(program: Program) {
     let mut stack: Vec<Value> = Vec::with_capacity(program.call_table[0].locals);
-    let mut rstack: Vec<Value> = Vec::new();
+    let mut aux: Vec<Value> = Vec::new();
     for _ in 0..program.call_table[0].locals {
         stack.push(Value::Null);
     }
@@ -125,9 +125,9 @@ pub fn interpret(program: Program) {
                     let ref nfe = IRT_TABLE[ft.to_native_index()];
                     assert_eq!(arity, nfe.arity);
                     match kind {
-                        Call::Normal => (nfe.entry.irr)(&mut stack),
-                        Call::Reverse => (nfe.entry.rev)(&mut stack, &mut rstack),
-                        Call::Inverse => (nfe.entry.inv)(&mut stack, &mut rstack),
+                        Call::Regular => (nfe.entry.irr)(&mut stack),
+                        Call::Reverse => (nfe.entry.rev)(&mut stack, &mut aux),
+                        Call::Inverse => (nfe.entry.inv)(&mut stack, &mut aux),
                     }
                     a0 = stack.pop().unwrap();
                 } else {

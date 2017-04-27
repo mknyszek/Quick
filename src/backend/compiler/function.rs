@@ -54,7 +54,7 @@ impl Function {
     pub fn op3(&mut self, op: TriOp)         { self.bc.push(Bytecode::Op3(op));            } 
     pub fn op2(&mut self, op: BinOp)         { self.bc.push(Bytecode::Op2(op));            } 
     pub fn op1(&mut self, op: UnOp)          { self.bc.push(Bytecode::Op1(op));            } 
-    pub fn call(&mut self, arity: usize)     { self.bc.push(Bytecode::Call(Call::Normal,  arity)); } 
+    pub fn call(&mut self, arity: usize)     { self.bc.push(Bytecode::Call(Call::Regular, arity)); } 
     pub fn rcall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Reverse, arity)); } 
     pub fn icall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Inverse, arity)); } 
     pub fn return_(&mut self, o: usize)      { self.bc.push(Bytecode::Return(o));          }

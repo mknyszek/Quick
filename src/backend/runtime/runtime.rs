@@ -32,87 +32,136 @@ pub struct IRTFunction {
 }
 
 irt_table! {
-    fn[stack] len(1) {
+    fn[stack, _aux] len(1) {
         let s = stack.pop().unwrap();
         stack.push(s.len());
     }
 
-    fn[stack] get(2) {
+    fn[stack, _aux] get(2) {
         let i = stack.pop().unwrap();
         let s = stack.pop().unwrap();
         stack.push(s.get(i));
     }
 
-    fn[stack] put(3) {
+    fn[stack, _aux] put(3) {
         let e = stack.pop().unwrap();
         let i = stack.pop().unwrap();
         let s = stack.pop().unwrap();
         stack.push(s.put(i, e));
     }
 
-    fn[stack] cat(2) {
+    fn[stack, _aux] cat(2) {
         let s2 = stack.pop().unwrap();
         let s1 = stack.pop().unwrap();
         stack.push(s1.cat(s2));
     }
 
-    fn[stack] ceil(1) { math_irt_fn!(stack, ceil); }
-    fn[stack] floor(1) { math_irt_fn!(stack, floor); }
-    fn[stack] round(1) { math_irt_fn!(stack, round); }
-    fn[stack] abs(1) { math_irt_fn!(stack, abs); }
-    fn[stack] ln(1) { math_irt_fn!(stack, ln); }
-    fn[stack] log2(1) { math_irt_fn!(stack, log2); }
-    fn[stack] log10(1) { math_irt_fn!(stack, log10); }
-    fn[stack] sqrt(1) { math_irt_fn!(stack, sqrt); }
-    fn[stack] cos(1) { math_irt_fn!(stack, cos); }
-    fn[stack] sin(1) { math_irt_fn!(stack, sin); }
-    fn[stack] tan(1) { math_irt_fn!(stack, tan); }
-    fn[stack] acos(1) { math_irt_fn!(stack, acos); }
-    fn[stack] asin(1) { math_irt_fn!(stack, asin); }
-    fn[stack] atan(1) { math_irt_fn!(stack, atan); }
+    fn[stack, _aux] ceil(1) { math_irt_fn!(stack, ceil); }
+    fn[stack, _aux] floor(1) { math_irt_fn!(stack, floor); }
+    fn[stack, _aux] round(1) { math_irt_fn!(stack, round); }
+    fn[stack, _aux] abs(1) { math_irt_fn!(stack, abs); }
+    fn[stack, _aux] ln(1) { math_irt_fn!(stack, ln); }
+    fn[stack, _aux] log2(1) { math_irt_fn!(stack, log2); }
+    fn[stack, _aux] log10(1) { math_irt_fn!(stack, log10); }
+    fn[stack, _aux] sqrt(1) { math_irt_fn!(stack, sqrt); }
+    fn[stack, _aux] cos(1) { math_irt_fn!(stack, cos); }
+    fn[stack, _aux] sin(1) { math_irt_fn!(stack, sin); }
+    fn[stack, _aux] tan(1) { math_irt_fn!(stack, tan); }
+    fn[stack, _aux] acos(1) { math_irt_fn!(stack, acos); }
+    fn[stack, _aux] asin(1) { math_irt_fn!(stack, asin); }
+    fn[stack, _aux] atan(1) { math_irt_fn!(stack, atan); }
 
-    fn[stack] pow(2) {
+    fn[stack, _aux] pow(2) {
         let e = stack.pop().unwrap();
         let s = stack.pop().unwrap();
         stack.push(s.pow(e));
     }
 
-    fn[stack] pi(0) {
+    fn[stack, _aux] pi(0) {
         stack.push(Value::Float(f64::consts::PI));
     }
 
-    fn[stack] e(0) {
+    fn[stack, _aux] e(0) {
         stack.push(Value::Float(f64::consts::E));
     } 
 
-    fn[stack] hadamard(1) { qureg_irt_fn_t!(stack, hadamard); }
+    fn[stack, _aux] hadamard(1) {
+        (regular) = { qureg_irt_fn_t!(stack, hadamard); }
+        (reverse) = { qureg_irt_fn_t!(stack, hadamard); }
+        (inverse) = { qureg_irt_fn_t!(stack, hadamard); }
+    }
 
-    fn[stack] sigx(1) { qureg_irt_fn_t!(stack, sigma_x); }
-    fn[stack] sigy(1) { qureg_irt_fn_t!(stack, sigma_y); }
-    fn[stack] sigz(1) { qureg_irt_fn_t!(stack, sigma_z); }
+    fn[stack, _aux] sigx(1) {
+        (regular) = { qureg_irt_fn_t!(stack, sigma_x); }
+        (reverse) = { qureg_irt_fn_t!(stack, sigma_x); }
+        (inverse) = { qureg_irt_fn_t!(stack, sigma_x); }
+    }
 
-    fn[stack] rx(2) { qureg_irt_fn_t_g!(stack, rotate_x); }
-    fn[stack] ry(2) { qureg_irt_fn_t_g!(stack, rotate_y); }
-    fn[stack] rz(2) { qureg_irt_fn_t_g!(stack, rotate_z); }
+    fn[stack, _aux] sigy(1) {
+        (regular) = { qureg_irt_fn_t!(stack, sigma_y); }
+        (reverse) = { qureg_irt_fn_t!(stack, sigma_y); }
+        (inverse) = { qureg_irt_fn_t!(stack, sigma_y); }
+    }
 
-    fn[stack] phase(2)   { qureg_irt_fn_t_g!(stack, phase); }
-    fn[stack] phaseby(2) { qureg_irt_fn_t_g!(stack, phaseby); }
+    fn[stack, _aux] sigz(1) {
+        (regular) = { qureg_irt_fn_t!(stack, sigma_z); }
+        (reverse) = { qureg_irt_fn_t!(stack, sigma_z); }
+        (inverse) = { qureg_irt_fn_t!(stack, sigma_z); }
+    }
 
-    fn[stack] cnot(2) {
+    fn[stack, aux] rx(2) { 
+        (regular) = { qureg_irt_fn_t_g!(stack, rotate_x); }
+        (reverse) = { qureg_irt_rev_fn_t_g!(stack, aux, rotate_x); }
+        (inverse) = { qureg_irt_inv_fn_t_g!(stack, aux, rotate_x); }
+    }
+
+    fn[stack, aux] ry(2) { 
+        (regular) = { qureg_irt_fn_t_g!(stack, rotate_y); }
+        (reverse) = { qureg_irt_rev_fn_t_g!(stack, aux, rotate_y); }
+        (inverse) = { qureg_irt_inv_fn_t_g!(stack, aux, rotate_y); }
+    }
+
+    fn[stack, aux] rz(2) { 
+        (regular) = { qureg_irt_fn_t_g!(stack, rotate_z); }
+        (reverse) = { qureg_irt_rev_fn_t_g!(stack, aux, rotate_z); }
+        (inverse) = { qureg_irt_inv_fn_t_g!(stack, aux, rotate_z); }
+    }
+
+    fn[stack, aux] phase(2) {
+        (regular) = { qureg_irt_fn_t_g!(stack, phase); }
+        (reverse) = { qureg_irt_rev_fn_t_g!(stack, aux, phase); }
+        (inverse) = { qureg_irt_inv_fn_t_g!(stack, aux, phase); }
+    }
+
+    fn[stack, aux] phaseby(2) {
+        (regular) = { qureg_irt_fn_t_g!(stack, phaseby); }
+        (reverse) = { qureg_irt_rev_fn_t_g!(stack, aux, phaseby); }
+        (inverse) = { qureg_irt_inv_fn_t_g!(stack, aux, phaseby); }
+    } 
+
+    fn[stack, _aux] cnot(2) {
         let mut t = stack.pop().unwrap().as_qureg();
         let mut c = stack.pop().unwrap().as_qureg();
         t.cnot(&mut c);
         stack.push(Value::QuReg(t));
     }
 
-    fn[stack] cphase(2) {
+    fn[stack, _aux] toffoli(3) {
+        let mut t = stack.pop().unwrap().as_qureg();
+        let mut c1 = stack.pop().unwrap().as_qureg();
+        let mut c2 = stack.pop().unwrap().as_qureg();
+        t.toffoli(&mut c1, &mut c2);
+        stack.push(Value::QuReg(t));
+    }
+
+    fn[stack, _aux] cphase(2) {
         let mut t = stack.pop().unwrap().as_qureg();
         let mut c = stack.pop().unwrap().as_qureg();
         t.cphase(&mut c);
         stack.push(Value::QuReg(t));
     }
 
-    fn[stack] cphaseby(3) {
+    fn[stack, _aux] cphaseby(3) {
         let g = stack.pop().unwrap().as_float();
         let mut t = stack.pop().unwrap().as_qureg();
         let mut c = stack.pop().unwrap().as_qureg();
@@ -120,7 +169,7 @@ irt_table! {
         stack.push(Value::QuReg(t));
     }
 
-    fn[stack] measure(1) {
+    fn[stack, _aux] measure(1) {
         let s = stack.pop().unwrap();
         let value = match s {
             Value::QuReg(mut q) => Value::Int(q.measure()),

@@ -40,30 +40,30 @@ macro_rules! invalid_call {
 }
 
 macro_rules! irt_entry {
-    ($f:ident, $s:ident, $b:block) => {
+    ($f:ident, $s:ident, $rs:ident, { (regular) = $n:block (reverse) = $r:block (inverse) = $i:block }) => {
+        IRTEntry {
+            irr: &|$s| $n,
+            rev: &|$s, $rs| $r,
+            inv: &|$s, $rs| $i,
+        }
+    };
+    ($f:ident, $s:ident, $rs:ident, $b:block) => {
         IRTEntry {
             irr: &|$s| $b,
             rev: &|_, _| invalid_call!($f),
             inv: &|_, _| invalid_call!($f),
         }
     };
-    ($f:ident, $s:ident, [$rs:ident] { normal => $n:stmt; reverse => $r:stmt; inverse => $i:stmt; }) => {
-        IRTEntry {
-            irr: &|$s| $n,
-            rev: &|$s, $rs| $r,
-            inv: &|$s, $rs| $i,
-        }
-    }
 }
 
 #[macro_export]
 macro_rules! irt_table {
-    ($(fn[$s:ident] $i:ident($n:expr) $t:tt )*) => {
+    ($(fn[$s:ident, $rs:ident] $i:ident($n:expr) $t:tt)*) => {
         pub const IRT_STRINGS: &'static [&'static str] = &[
             $(stringify!($i)),*
         ];
         pub const IRT_TABLE: &'static [IRTFunction] = &[
-            $(IRTFunction { entry: irt_entry!($i, $s, $t), arity: $n }),* 
+            $(IRTFunction { entry: irt_entry!($i, $s, $rs, $t), arity: $n }),* 
         ];
     }
 }
@@ -84,8 +84,10 @@ macro_rules! math_irt_fn {
 macro_rules! qureg_fn_t {
     ($f:ident) => {
         pub fn $f(&mut self) {
+            let start = self.raw_start();
+            let end = self.raw_end();
             let mut qm = self.qureg.borrow_mut();
-            for i in self.start..self.end {
+            for i in start..end {
                 qm.$f(i);
             }
         }
@@ -96,8 +98,10 @@ macro_rules! qureg_fn_t {
 macro_rules! qureg_fn_t_g {
     ($f:ident) => {
         pub fn $f(&mut self, gamma: f64) {
+            let start = self.raw_start();
+            let end = self.raw_end();
             let mut qm = self.qureg.borrow_mut();
-            for i in self.start..self.end {
+            for i in start..end {
                 qm.$f(i, gamma as f32);
             }
         }
@@ -122,6 +126,34 @@ macro_rules! qureg_irt_fn_t_g {
         let s = $stack.pop().unwrap();
         match s {
             Value::QuReg(mut q) => { q.$f(g.as_float()); $stack.push(Value::QuReg(q)); },
+            _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! qureg_irt_rev_fn_t_g {
+    ($stack:ident, $aux:ident, $f:ident) => {
+        let g = $stack.pop().unwrap().as_float();
+        let s = $stack.pop().unwrap();
+        match s {
+            Value::QuReg(mut q) => {
+                q.$f(g);
+                $aux.push(Value::Float(g));
+                $stack.push(Value::QuReg(q));
+            },
+            _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! qureg_irt_inv_fn_t_g {
+    ($stack:ident, $aux:ident, $f:ident) => {
+        let g = $aux.pop().unwrap().as_float();
+        let s = $stack.pop().unwrap();
+        match s {
+            Value::QuReg(mut q) => { q.$f(-g); $stack.push(Value::QuReg(q)); },
             _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
         }
     }
