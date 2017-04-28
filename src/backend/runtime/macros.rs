@@ -49,6 +49,74 @@ macro_rules! irt_table {
 }
 
 #[macro_export]
+macro_rules! simple_irt_fn {
+    ($stack:ident, $f:ident) => {
+        let s_ = $stack.pop().unwrap(); 
+        $stack.push(s_.$f());
+    };
+    ($stack:ident, $f:ident, $($a:ident),*) => {
+        let r_ = {
+            let l_ = &[$(stringify!($a)),*].len() + 1;
+            let sl_ = $stack.len();
+            let mut d_ = $stack.drain(sl_-l_..);
+            let s_ = d_.next().unwrap(); 
+            $(
+            let $a = d_.next().unwrap();
+            )*
+            s_.$f($($a),*)
+        };
+        $stack.push(r_);
+    };
+}
+
+#[macro_export]
+macro_rules! simple_irt_rev_fn {
+    ($stack:ident, $aux:ident, $f:ident) => {
+        let s_ = $stack.pop().unwrap(); 
+        $stack.push(s_.clone().$f());
+        $aux.push(s_);
+    };
+    ($stack:ident, $aux:ident, $f:ident, $($a:ident),*) => {
+        let r_ = {
+            let l_ = &[$(stringify!($a)),*].len() + 1;
+            let sl_ = $stack.len();
+            let mut d_ = $stack.drain(sl_-l_..);
+            let s_ = d_.next().unwrap(); 
+            $aux.push(s_.clone());
+            $(
+            let $a = d_.next().unwrap();
+            $aux.push($a.clone());
+            )*
+            s_.$f($($a),*)
+        }; 
+        $stack.push(r_);
+    };
+}
+
+#[macro_export]
+macro_rules! simple_irt_inv_fn {
+    ($stack:ident, $aux:ident, $f:ident) => {
+        let _ = $stack.pop().unwrap(); 
+        let s_ = $aux.pop().unwrap(); 
+        $stack.push(s_);
+    };
+    ($stack:ident, $aux:ident, $f:ident, $($a:ident),*) => {
+        let _ = $stack.pop().unwrap(); 
+        let l_ = &[$(stringify!($a)),*].len() + 1;
+        let sl_ = $aux.len();
+        let mut d_ = $aux.drain(sl_-l_..);
+        let s_ = d_.next().unwrap(); 
+        $(
+        let $a = d_.next().unwrap();
+        )*
+        $stack.push(s_);
+        $(
+        $stack.push($a);
+        )*
+    };
+}
+
+#[macro_export]
 macro_rules! math_irt_fn {
     ($stack:ident, $f:ident) => {
         let s = $stack.pop().unwrap();

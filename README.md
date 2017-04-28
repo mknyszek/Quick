@@ -5,10 +5,7 @@ A prototype quantum scripting language, complete with a simple bytecode-based in
 ## License
 
 This repository is licensed under GPLv3, because it depends upon
-`rust-libquantum`, which is GPLv3, because it ultimately depends on libquantum.
-
-I will happily relicense this repository under a less restrictive license if I
-can find a mature quantum library which I could write Rust bindings for.
+`rust-libquantum`, which is GPLv3 because it ultimately depends on libquantum.
 
 ## Installation
 

@@ -118,7 +118,7 @@ impl Value {
     pub fn not(self) -> Value {
         match self {
             Value::QuReg(mut q) => {
-                q.sigma_x();
+                q.not();
                 Value::QuReg(q)
             },
             _ => Value::Bool(!self.as_bool()),

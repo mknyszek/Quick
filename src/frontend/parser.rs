@@ -38,7 +38,7 @@ impl_rdp! {
             print_stmt |
             block_stmt |
             ret_stmt |
-            uif_stmt |
+            with_stmt |
             expr_stmt
         }
 
@@ -50,7 +50,7 @@ impl_rdp! {
         fore_stmt  = { ["foreach"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [")"] ~ stmt }
         forl_stmt  = { ["for"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [".."] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
-        uif_stmt   = { ["if*"] ~ ["("] ~ expr ~ [")"] ~ stmt }
+        with_stmt  = { ["with"] ~ ["("] ~ iden ~ ["="] ~ expr ~ [")"] ~ stmt }
         print_stmt = { ["print"] ~ lst_s ~ string ~ ([","] ~ arg)* ~ lst_e ~ [";"] }
         ret_stmt   = { ["ret"] ~ expr ~ [";"] }
 
@@ -179,7 +179,9 @@ impl_rdp! {
                 Stmt::ForLoop(string_table::insert(name), start, end, Box::new(body))
             },
             (_: ret_stmt, value: _expr()) => Stmt::Return(value),
-            (_: uif_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::UnIf(pred, Box::new(body)),
+            (_: with_stmt, &name:iden, pred: _expr(), _: stmt, body: _stmt()) => {
+                Stmt::With(string_table::insert(name), pred, Box::new(body))
+            },
             (_: expr_stmt, e: _expr()) => Stmt::Expr(e),
             (_: print_stmt, _: lst_s, &s: string, args: _arg_list(), _: lst_e) => {
                 let s_len = s.len();
@@ -206,7 +208,7 @@ impl_rdp! {
                 Expr::If(Box::new(pred), Box::new(then), Box::new(other))
             },
             (_: alloc_expr, n: _expr()) => {
-                Expr::UnOp(UnOp::QAlloc, Box::new(n))
+                Expr::QAlloc(Box::new(n))
             },
             (_: block_expr, _: blk_s, stmts: _stmt_list(), result: _expr(), _: blk_e) => {
                 Expr::Block(stmts, Box::new(result))
@@ -221,38 +223,37 @@ impl_rdp! {
                 Expr::Assign(string_table::insert(var), Box::new(value))
             },
             (_: get_expr, a: _expr(), index: _expr()) => {
-                Expr::BinOp(Box::new(a), BinOp::Get, Box::new(index))
+                Expr::Get(Box::new(a), Box::new(index))
             },
             (_: slice_expr, a: _expr(), index1: _expr(), index2: _expr()) => {
-                Expr::TriOp(Box::new(a), TriOp::Slice, Box::new(index1), Box::new(index2))
+                Expr::Slice(Box::new(a), Box::new(index1), Box::new(index2))
             },
             (_: put_expr, a: _expr(), index: _expr(), value: _expr()) => {
-                Expr::TriOp(Box::new(a), TriOp::Put, Box::new(index), Box::new(value))
+                Expr::Put(Box::new(a), Box::new(index), Box::new(value))
             },
             (_: array_expr, _: arr_s, args: _arg_list(), _: arr_e) => {
                 Expr::Array(args)
             },
             (_: unary_expr, op, e: _expr()) => {
-                Expr::UnOp(match op.rule {
-                    Rule::minus => UnOp::Neg,
-                    Rule::not => UnOp::Not,
-                    Rule::bnot => UnOp::BNot,
-                    Rule::len => UnOp::Len,
-                    Rule::apply => UnOp::Invoke,
-                    _ => unreachable!(),
-                }, Box::new(e))
+                if let Rule::apply = op.rule {
+                    Expr::Invoke(Box::new(e))
+                } else if let Rule::len = op.rule {
+                    Expr::Len(Box::new(e))
+                } else {
+                    let unop = match op.rule {
+                        Rule::minus => UnOp::Neg,
+                        Rule::not => UnOp::Not,
+                        Rule::bnot => UnOp::BNot,
+                        _ => unreachable!()
+                    };
+                    Expr::UnOp(unop, Box::new(e))
+                }
             },
-            (_: func, e1: _expr(), op, e2: _expr()) => {
-                Expr::BinOp(Box::new(e1), match op.rule {
-                    Rule::apply => BinOp::Apply,
-                    _ => unreachable!(),
-                }, Box::new(e2))
+            (_: func, e1: _expr(), _, e2: _expr()) => {
+                Expr::Apply(Box::new(e1), Box::new(e2))
             },
-            (_: chng, e1: _expr(), op, e2: _expr()) => {
-                Expr::BinOp(Box::new(e1), match op.rule {
-                    Rule::cat => BinOp::Cat,
-                    _ => unreachable!(),
-                }, Box::new(e2))
+            (_: chng, e1: _expr(), _, e2: _expr()) => {
+                Expr::Cat(Box::new(e1), Box::new(e2))
             },
             (_: lgc, e1: _expr(), op, e2: _expr()) => {
                 Expr::BinOp(Box::new(e1), match op.rule {

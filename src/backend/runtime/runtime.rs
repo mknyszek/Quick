@@ -32,28 +32,40 @@ pub struct IRTFunction {
 }
 
 irt_table! {
-    fn[stack, _aux] len(1) {
-        let s = stack.pop().unwrap();
-        stack.push(s.len());
+    fn[stack, aux] len(1) {
+        (regular) = { simple_irt_fn!(stack, len);  }
+        (reverse) = { simple_irt_rev_fn!(stack, aux, len); }
+        (inverse) = { simple_irt_inv_fn!(stack, aux, len); }
     }
 
-    fn[stack, _aux] get(2) {
-        let i = stack.pop().unwrap();
-        let s = stack.pop().unwrap();
-        stack.push(s.get(i));
+    fn[stack, aux] get(2) {
+        (regular) = { simple_irt_fn!(stack, get, i);  }
+        (reverse) = { simple_irt_rev_fn!(stack, aux, get, i); }
+        (inverse) = { simple_irt_inv_fn!(stack, aux, get, i); }
     }
 
-    fn[stack, _aux] put(3) {
-        let e = stack.pop().unwrap();
-        let i = stack.pop().unwrap();
-        let s = stack.pop().unwrap();
-        stack.push(s.put(i, e));
+    fn[stack, aux] slice(3) {
+        (regular) = { simple_irt_fn!(stack, slice, i1, i2);  }
+        (reverse) = { simple_irt_rev_fn!(stack, aux, slice, i1, i2); }
+        (inverse) = { simple_irt_inv_fn!(stack, aux, slice, i1, i2); }
     }
 
-    fn[stack, _aux] cat(2) {
-        let s2 = stack.pop().unwrap();
-        let s1 = stack.pop().unwrap();
-        stack.push(s1.cat(s2));
+    fn[stack, aux] put(3) {
+        (regular) = { simple_irt_fn!(stack, put, i, e);  }
+        (reverse) = { simple_irt_rev_fn!(stack, aux, put, i, e); }
+        (inverse) = { simple_irt_inv_fn!(stack, aux, put, i, e); }
+    }
+
+    fn[stack, aux] cat(2) {
+        (regular) = { simple_irt_fn!(stack, cat, s2);  }
+        (reverse) = { simple_irt_rev_fn!(stack, aux, cat, s2); }
+        (inverse) = { simple_irt_inv_fn!(stack, aux, cat, s2); }
+    }
+
+    fn[stack, aux] qalloc(1) {
+        (regular) = { simple_irt_fn!(stack, qalloc);  }
+        (reverse) = { simple_irt_rev_fn!(stack, aux, qalloc); }
+        (inverse) = { simple_irt_inv_fn!(stack, aux, qalloc); }
     }
 
     fn[stack, _aux] ceil(1) { math_irt_fn!(stack, ceil); }

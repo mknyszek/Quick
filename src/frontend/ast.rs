@@ -17,7 +17,7 @@
 
 use std::collections::LinkedList;
 
-use util::ops::{UnOp, BinOp, TriOp};
+use util::ops::*;
 use util::string_table::StringToken;
 
 pub type Ast = LinkedList<Stmt>;
@@ -30,7 +30,7 @@ pub enum Stmt {
     While(Expr, Box<Stmt>),
     ForEach(StringToken, Expr, Box<Stmt>),
     ForLoop(StringToken, Expr, Expr, Box<Stmt>),
-    UnIf(Expr, Box<Stmt>),
+    With(StringToken, Expr, Box<Stmt>),
     Expr(Expr),
     Return(Expr),
     Print(StringToken, LinkedList<Expr>),
@@ -52,5 +52,12 @@ pub enum Expr {
     Array(LinkedList<Expr>),
     UnOp(UnOp, Bxpr),
     BinOp(Bxpr, BinOp, Bxpr),
-    TriOp(Bxpr, TriOp, Bxpr, Bxpr),
+    Cat(Bxpr, Bxpr),
+    Get(Bxpr, Bxpr),
+    Put(Bxpr, Bxpr, Bxpr),
+    Slice(Bxpr, Bxpr, Bxpr),
+    Len(Bxpr),
+    QAlloc(Bxpr),
+    Apply(Bxpr, Bxpr),
+    Invoke(Bxpr),
 }

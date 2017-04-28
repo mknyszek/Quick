@@ -16,12 +16,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #[derive(Debug, Clone, Copy)]
-pub enum TriOp {
-    Put,
-    Slice,
-}
-
-#[derive(Debug, Clone, Copy)]
 pub enum BinOp {
     Add,
     Sub,
@@ -40,9 +34,6 @@ pub enum BinOp {
     BAnd,
     BOr,
     BXor,
-    Get,
-    Cat,
-    Apply,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -50,7 +41,4 @@ pub enum UnOp {
     Neg,
     Not,
     BNot,
-    Len,
-    Invoke,
-    QAlloc,
 }

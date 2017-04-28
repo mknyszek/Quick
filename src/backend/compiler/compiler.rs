@@ -105,27 +105,33 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 end_loop = func.label();
 
                 func.put_local(array);
-                func.op1(UnOp::Len);
+            }
+            builtin_call!(fns, len, 1);   
+            {
+                let func = fns.current();
                 func.put_local(counter);
                 func.int(0);
-                func.op2(BinOp::Ge);
+                func.op2(BinOp::Le);
                 func.branch(end_loop);
 
                 func.bind(start_loop);
-                func.int(1);
+                func.get_local(array);
                 func.get_local(counter);
+                func.int(1);
                 func.op2(BinOp::Sub);
                 func.put_local(counter);
-                func.get_local(array);
-                func.op2(BinOp::Get);
+            }
+            builtin_call!(fns, get, 2);   
+            {
+                let func = fns.current();
                 func.put_local(id);
                 func.discard();
             }
             compile_stmt(b.borrow(), fns, env)?;
             {
                 let func = fns.current();
-                func.int(0);
                 func.get_local(counter);
+                func.int(0);
                 func.op2(BinOp::Gt);
                 func.branch(start_loop);
                 func.bind(end_loop);
@@ -150,12 +156,12 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             {
                 let func = fns.current();
                 func.put_local(end);
-                func.op2(BinOp::Le);
+                func.op2(BinOp::Ge);
                 func.branch(end_loop);
 
                 func.bind(start_loop);
-                func.int(1);
                 func.get_local(id);
+                func.int(1);
                 func.op2(BinOp::Add);
                 func.put_local(id);
                 func.discard();
@@ -165,29 +171,37 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 let func = fns.current();
                 func.get_local(id);
                 func.get_local(end);
-                func.op2(BinOp::Gt);
+                func.op2(BinOp::Lt);
                 func.branch(start_loop);
                 func.bind(end_loop);
             }
             env.pop_scope();
         },
-        Stmt::UnIf(_, _) => unimplemented!(),
+        Stmt::With(id, ref p, ref b) => {
+            let id = env.add_id(id)?;
+            compile_rev_expr(p, fns, env)?;
+            {
+                let func = fns.current();
+                func.put_local(id);
+                func.discard();
+            }
+            compile_stmt(b.borrow(), fns, env)?;
+            fns.current().get_local(id);
+            compile_inv_expr(p, fns, env)?;
+        },
         Stmt::Return(ref e) => {
             compile_expr(e, fns, env)?;
-            let func = fns.current();
-            func.return_(env.locals());
+            fns.current().return_(env.locals());
         },
         Stmt::Expr(ref e) => {
             compile_expr(e, fns, env)?;
-            let func = fns.current();
-            func.discard();
+            fns.current().discard();
         },
         Stmt::Print(lit, ref args) => {
             for a in args.iter() {
                 compile_expr(a, fns, env)?;
             }
-            let func = fns.current();
-            func.print(lit, args.len());
+            fns.current().print(lit, args.len());
         }
     }
     Ok(())
@@ -271,33 +285,33 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
         },
         Expr::UnOp(op, ref e) => {
             compile_expr(e.borrow(), fns, env)?;
-            if let UnOp::Invoke = op {
-                fns.current().call(0);
-            } else {
-                fns.current().op1(op);
-            }
+            fns.current().op1(op);
         },
         Expr::BinOp(ref e1, op, ref e2) => {
-            compile_expr(e2.borrow(), fns, env)?;
             compile_expr(e1.borrow(), fns, env)?;
-            if let BinOp::Apply = op {
-                fns.current().call(1);
-            } else {
-                fns.current().op2(op);
-            }
+            compile_expr(e2.borrow(), fns, env)?;
+            fns.current().op2(op);
         },
-        Expr::TriOp(ref e1, op, ref e2, ref e3) => {
-            compile_expr(e3.borrow(), fns, env)?;
-            compile_expr(e2.borrow(), fns, env)?;
-            compile_expr(e1.borrow(), fns, env)?;
-            fns.current().op3(op);
-        }
+        Expr::Cat(ref e1, ref e2) => builtin_call!(fns, env, cat, 2, e1, e2),
+        Expr::Get(ref e1, ref e2) => builtin_call!(fns, env, get, 2, e1, e2),
+        Expr::Put(ref e1, ref e2, ref e3) => builtin_call!(fns, env, put, 3, e1, e2, e3),
+        Expr::Slice(ref e1, ref e2, ref e3) => builtin_call!(fns, env, slice, 3, e1, e2, e3),
+        Expr::Len(ref e) => builtin_call!(fns, env, len, 1, e),
+        Expr::QAlloc(ref e) => builtin_call!(fns, env, qalloc, 1, e),
+        Expr::Invoke(ref f) => {
+            compile_expr(f.borrow(), fns, env)?;
+            fns.current().call(0);
+        },
+        Expr::Apply(ref f, ref a) => {
+            compile_expr(a.borrow(), fns, env)?;
+            compile_expr(f.borrow(), fns, env)?;
+            fns.current().call(1);
+        },
     }
     Ok(())
 }
 
-/*
-fn compile_qcond(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) -> Result<(), String> {
+fn compile_rev_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) -> Result<(), String> {
     match *expr {
         Expr::Int(i) => fns.current().int(i),
         Expr::Bool(b) => fns.current().bool(b),
@@ -310,82 +324,65 @@ fn compile_qcond(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) -
         },
         Expr::Call(ref f, ref args) => {
             for a in args.iter() {
-                compile_expr(a, fns, env)?;
+                compile_rev_expr(a, fns, env)?;
             }
-            compile_expr(f.borrow(), fns, env)?;
-            fns.current().call(args.len());
+            compile_rev_expr(f.borrow(), fns, env)?;
+            fns.current().rcall(args.len());
         },
         Expr::UnOp(op, ref e) => {
-            compile_expr(e.borrow(), fns, env)?;
-            if let UnOp::Invoke = op {
-                fns.current().call(0);
-            } else {
-                fns.current().op1(op);
-            }
+            compile_rev_expr(e.borrow(), fns, env)?;
+            fns.current().rop1(op);
         },
         Expr::BinOp(ref e1, op, ref e2) => {
-            compile_expr(e2.borrow(), fns, env)?;
-            compile_expr(e1.borrow(), fns, env)?;
-            if let BinOp::Apply = op {
-                fns.current().call(1);
-            } else {
-                fns.current().op2(op);
-            }
+            compile_rev_expr(e1.borrow(), fns, env)?;
+            compile_rev_expr(e2.borrow(), fns, env)?;
+            fns.current().rop2(op);
         },
-        Expr::TriOp(ref e1, op, ref e2, ref e3) => {
-            compile_expr(e3.borrow(), fns, env)?;
-            compile_expr(e2.borrow(), fns, env)?;
-            compile_expr(e1.borrow(), fns, env)?;
-            fns.current().op3(op);
-        }
+        Expr::Invoke(ref f) => {
+            compile_expr(f.borrow(), fns, env)?;
+            fns.current().rcall(0);
+        },
+        Expr::Apply(ref f, ref a) => {
+            compile_expr(a.borrow(), fns, env)?;
+            compile_expr(f.borrow(), fns, env)?;
+            fns.current().rcall(1);
+        },
         _ => panic!("Feature {:?} is not reversible.", expr),
     }
     Ok(())
 }
 
-fn compile_iqcond(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) -> Result<(), String> {
+fn compile_inv_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) -> Result<(), String> {
     match *expr {
-        Expr::Int(i) => fns.current().int(i),
-        Expr::Bool(b) => fns.current().bool(b),
-        Expr::Ref(id) => match env.find(id) {
-            Some(offset) => fns.current().get_local(offset),
-            None => match fns.lookup(id) {
-                Some(ft) => fns.current().func(ft),
-                None => return_error!("Identifier '{}' is not defined", string_table::get(id)),
-            },
-        },
+        Expr::Int(_) => fns.current().discard(),
+        Expr::Bool(_) => fns.current().discard(),
+        Expr::Ref(_) => fns.current().discard(),
         Expr::Call(ref f, ref args) => {
-            for a in args.iter() {
-                compile_expr(a, fns, env)?;
+            compile_inv_expr(f.borrow(), fns, env)?;
+            fns.current().icall(args.len());
+            for a in args.iter().rev() {
+                compile_inv_expr(a, fns, env)?;
             }
-            compile_expr(f.borrow(), fns, env)?;
-            fns.current().call(args.len());
         },
         Expr::UnOp(op, ref e) => {
-            compile_expr(e.borrow(), fns, env)?;
-            if let UnOp::Invoke = op {
-                fns.current().call(0);
-            } else {
-                fns.current().op1(op);
-            }
+            fns.current().iop1(op);
+            compile_inv_expr(e.borrow(), fns, env)?;
         },
         Expr::BinOp(ref e1, op, ref e2) => {
-            compile_expr(e2.borrow(), fns, env)?;
-            compile_expr(e1.borrow(), fns, env)?;
-            if let BinOp::Apply = op {
-                fns.current().call(1);
-            } else {
-                fns.current().op2(op);
-            }
+            fns.current().iop2(op);
+            compile_inv_expr(e2.borrow(), fns, env)?;
+            compile_inv_expr(e1.borrow(), fns, env)?;
         },
-        Expr::TriOp(ref e1, op, ref e2, ref e3) => {
-            compile_expr(e3.borrow(), fns, env)?;
-            compile_expr(e2.borrow(), fns, env)?;
-            compile_expr(e1.borrow(), fns, env)?;
-            fns.current().op3(op);
-        }
+        Expr::Invoke(ref f) => {
+            compile_inv_expr(f.borrow(), fns, env)?;
+            fns.current().icall(0);
+        },
+        Expr::Apply(ref f, ref a) => {
+            compile_inv_expr(f.borrow(), fns, env)?;
+            fns.current().icall(1);
+            compile_inv_expr(a.borrow(), fns, env)?;
+        },
         _ => panic!("Feature {:?} is not reversible.", expr),
     }
     Ok(())
 }
-*/

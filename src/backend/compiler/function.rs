@@ -51,9 +51,12 @@ impl Function {
     pub fn bool(&mut self, v: bool)          { self.bc.push(Bytecode::Bool(v));            } 
     pub fn func(&mut self, f: FunctionToken) { self.bc.push(Bytecode::Func(f));            }
     pub fn array(&mut self, len: usize)      { self.bc.push(Bytecode::Array(len));         }
-    pub fn op3(&mut self, op: TriOp)         { self.bc.push(Bytecode::Op3(op));            } 
-    pub fn op2(&mut self, op: BinOp)         { self.bc.push(Bytecode::Op2(op));            } 
-    pub fn op1(&mut self, op: UnOp)          { self.bc.push(Bytecode::Op1(op));            } 
+    pub fn op2(&mut self, op: BinOp)         { self.bc.push(Bytecode::Op2(Call::Regular, op)); } 
+    pub fn op1(&mut self, op: UnOp)          { self.bc.push(Bytecode::Op1(Call::Regular, op)); }
+    pub fn rop2(&mut self, op: BinOp)        { self.bc.push(Bytecode::Op2(Call::Reverse, op)); } 
+    pub fn rop1(&mut self, op: UnOp)         { self.bc.push(Bytecode::Op1(Call::Reverse, op)); } 
+    pub fn iop2(&mut self, op: BinOp)        { self.bc.push(Bytecode::Op2(Call::Inverse, op)); } 
+    pub fn iop1(&mut self, op: UnOp)         { self.bc.push(Bytecode::Op1(Call::Inverse, op)); } 
     pub fn call(&mut self, arity: usize)     { self.bc.push(Bytecode::Call(Call::Regular, arity)); } 
     pub fn rcall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Reverse, arity)); } 
     pub fn icall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Inverse, arity)); } 

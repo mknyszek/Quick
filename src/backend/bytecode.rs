@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::ops::{TriOp, BinOp, UnOp};
+use util::ops::*;
 use util::string_table::StringToken;
 
 use backend::runtime::IRT_TABLE;
@@ -78,9 +78,8 @@ pub enum Bytecode {
     Bool(bool),
     Func(FunctionToken),
     Array(usize),
-    Op3(TriOp),
-    Op2(BinOp),
-    Op1(UnOp),
+    Op2(Call, BinOp),
+    Op1(Call, UnOp),
     Call(Call, usize),
     Discard,
     Return(usize),

@@ -33,3 +33,20 @@ macro_rules! unreachable {
 macro_rules! unimplemented {
     () => { panic!("Not yet implemented."); }
 }
+
+#[macro_export]
+macro_rules! builtin_call {
+    ($fns:ident, $f:ident, $a:expr) => {{
+        match $fns.lookup(string_table::insert(stringify!($f))) {
+            Some(ft) => $fns.current().func(ft),
+            None => return_error!(concat!("Internal error: Undefined function ", stringify!($f))),
+        }
+        $fns.current().call($a);
+    }};
+    ($fns:ident, $env:ident, $f:ident, $a:expr, $($e:expr),*) => {{
+        $(
+        compile_expr($e.borrow(), $fns, $env)?;
+        )*
+        builtin_call!($fns, $f, $a);
+    }};
+}
