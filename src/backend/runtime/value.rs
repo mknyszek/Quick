@@ -113,6 +113,7 @@ impl Value {
                     return;
                 }
             }
+            panic!("Internal Error, found reverse op with no forward op.");
         } else {
             // checks to make sure that we only have an bool here, otherwise
             self.as_bool();
@@ -127,6 +128,7 @@ impl Value {
                     return;
                 }
             }
+            panic!("Internal Error, found reverse op with no forward op.");
         } else {
             // checks to make sure that we only have an bool here, otherwise
             self.as_bool(); 
@@ -155,11 +157,21 @@ impl Value {
 
     pub fn not(self) -> Value {
         match self {
-            Value::QuReg(mut q) => {
-                q.not();
-                Value::QuReg(q)
-            },
+            Value::QuReg(mut q) => Value::QuReg(q.not()),
             _ => Value::Bool(!self.as_bool()),
+        }
+    }
+
+    pub fn inot(self, mut other: Value) {
+        if let Value::QuReg(q) = self {
+            if let Value::QuReg(ref mut q1) = other {
+                q.inot(q1);
+                return;
+            }
+            panic!("Internal Error, found reverse op with no forward op.");
+        } else {
+            // checks to make sure that we only have an bool here, otherwise
+            self.as_bool(); 
         }
     }
 
@@ -191,7 +203,7 @@ impl Value {
         match self {
             Value::Int(v) => Value::Int((v & (1 << idx)) >> idx),
             Value::Array(v) => v.get(idx),
-            Value::QuReg(q) => q.get(idx),
+            Value::QuReg(q) => Value::QuReg(q.get(idx)),
             _ => panic!("Get operation not available for {:?}", &self),
         }
     }
@@ -210,7 +222,7 @@ impl Value {
         let idx2 = index2.as_int() as usize;
         match self {
             Value::Array(v) => v.slice(idx1, idx2),
-            Value::QuReg(q) => q.slice(idx1, idx2),
+            Value::QuReg(q) => Value::QuReg(q.slice(idx1, idx2)),
             _ => panic!("Slice operation not available for {:?}", &self),
         }
     }

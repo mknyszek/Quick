@@ -115,14 +115,23 @@ pub fn interpret(program: Program) {
                     }
                 }
             },
-            Bytecode::Op1(_, op) => {
-                // Turns out all supported unary ops are inherently
-                // reversible, and their own inverse. Don't need to
-                // do anything.
-                match op {
-                    UnOp::Neg => a0 = a0.neg(),
-                    UnOp::Not => a0 = a0.not(),
-                    UnOp::BNot => a0 = a0.bnot(),
+            Bytecode::Op1(kind, op) => {
+                if let Call::Inverse = kind {
+                    let t0 = aux.pop().unwrap();
+                    match op {
+                        UnOp::Not => a0.inot(t0.clone()),
+                        _ => (),
+                    }
+                    a0 = t0;
+                } else {
+                    if let Call::Reverse = kind {
+                        aux.push(a0.clone());
+                    }
+                    match op {
+                        UnOp::Neg => a0 = a0.neg(),
+                        UnOp::Not => a0 = a0.not(),
+                        UnOp::BNot => a0 = a0.bnot(),
+                    }
                 }
             },
             Bytecode::Call(kind, arity) => {

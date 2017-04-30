@@ -18,8 +18,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use backend::runtime::value::Value;
-
 use libquantum::QuReg;
 
 #[derive(Debug, Clone)]
@@ -42,7 +40,7 @@ impl QuRegObject {
 
     fn raw_start(&self) -> usize {
         if self.scratch {
-            self.start
+            self.scratch() - self.start - 1
         } else {
             self.start + self.scratch()
         }
@@ -50,7 +48,7 @@ impl QuRegObject {
 
     fn raw_end(&self) -> usize {
         if self.scratch {
-            self.end
+            self.scratch() - self.end + 1
         } else {
             self.end + self.scratch()
         }
@@ -65,6 +63,7 @@ impl QuRegObject {
     }
 
     fn add_scratch(&mut self) -> QuRegObject {
+        assert!(self.qureg.borrow().width() < 64);
         self.qureg.borrow_mut().add_scratch(1);
         QuRegObject {
             start: self.scratch() - 1,
@@ -77,11 +76,12 @@ impl QuRegObject {
     fn remove_scratch(self) {
         if self.scratch {
             // Scratch reference must be a bit
-            assert!(self.end - self.start == 1);
+            assert!(self.qubit());
             if self.end != self.scratch() {
                 panic!("Scratch qubit {} deleted out of order!", self.start);
             }
-            if self.qureg.borrow_mut().measure_bit(self.start) {
+            let bit = self.raw_start();
+            if self.qureg.borrow_mut().measure_bit(bit) {
                 panic!("Scratch qubit {} not properly cleared!", self.start);
             }
         }
@@ -91,26 +91,23 @@ impl QuRegObject {
         self.end - self.start
     }
 
-    pub fn get(&self, idx: usize) -> Value {
+    pub fn get(&self, idx: usize) -> QuRegObject {
         if idx > self.end - self.start {
             panic!("Invalid index '{}' into QuReg.", idx);
         }
         self.slice(idx, idx+1)
     }
 
-    pub fn slice(&self, lb: usize, ub: usize) -> Value {
-        if self.scratch {
-            panic!("Invalid slice of scratch qubit.");
-        }
+    pub fn slice(&self, lb: usize, ub: usize) -> QuRegObject {
         if lb >= ub || ub > self.end - self.start {
             panic!("Invalid slice indicies '{}:{}' into QuReg.", lb, ub);
         }
-        Value::QuReg(QuRegObject {
+        QuRegObject {
             start: self.start + lb,
             end: self.start + ub,
-            scratch: false,
+            scratch: self.scratch,
             qureg: self.qureg.clone(),
-        })
+        }
     } 
 
     qureg_fn_t!(hadamard);
@@ -124,18 +121,120 @@ impl QuRegObject {
     qureg_fn_t_g!(phase);
     qureg_fn_t_g!(phaseby);
 
+    fn to_vec(&self) -> Vec<QuRegObject> {
+        let mut v = Vec::with_capacity(self.len() + 2);
+        for i in 0..self.len() {
+            v.push(self.get(i));
+        }
+        v
+    }
+
+    fn overlaps(&self, other: &QuRegObject) -> bool {
+        self.raw_start() < other.raw_end() && other.raw_start() < self.raw_end()
+    }
+
+    fn cnot_half(target: &mut QuRegObject,
+                 dummy: &mut [QuRegObject],
+                 control: &mut [QuRegObject]) {
+
+        debug_assert!(control.len() > 0);
+        debug_assert!(control.len() <= 1 + ((dummy.len() + control.len() + 1) / 2));
+        if control.len() == 1 {
+            target.cnot(&mut control[0]);
+            return;
+        } else if control.len() == 2 {
+            let (l, u) = control.split_at_mut(1);
+            target.toffoli(&mut l[0], &mut u[0]);
+            return;
+        }
+        let control_len = control.len();
+        // Perform O(n) (C^m)NOT algorithm, to avoid allocating bits
+        // See https://arxiv.org/abs/quant-ph/9503016
+        // In this case, m = control_len
+        target.toffoli(&mut dummy[0], &mut control[0]);
+        for i in 0..control_len-3 {
+            let (l, u) = dummy.split_at_mut(i+1);
+            l[i].toffoli(&mut u[0], &mut control[i]);
+        }
+        {
+            let (l, u) = control.split_at_mut(control_len-1);
+            dummy[control_len-3].toffoli(&mut u[0], &mut l[control_len-2]);
+        }
+        for i in (0..control_len-3).rev() {
+            let (l, u) = dummy.split_at_mut(i+1);
+            l[i].toffoli(&mut u[0], &mut control[i]);
+        }
+        target.toffoli(&mut dummy[0], &mut control[0]);
+        // Clean up messed up dummy qubits
+        for i in 0..control_len-3 {
+            let (l, u) = dummy.split_at_mut(i+1);
+            l[i].toffoli(&mut u[0], &mut control[i]);
+        }
+        {
+            let (l, u) = control.split_at_mut(control_len-1);
+            dummy[control_len-3].toffoli(&mut u[0], &mut l[control_len-2]);
+        }
+        for i in (0..control_len-3).rev() {
+            let (l, u) = dummy.split_at_mut(i+1);
+            l[i].toffoli(&mut u[0], &mut control[i]);
+        }
+    }
+
     pub fn cnot(&mut self, control: &mut QuRegObject) {
         assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
-        assert!(self.qubit());
-        let start = self.raw_start();
-        let startc = control.raw_start();
-        self.qureg.borrow_mut().cnot(startc, start);
+        assert!(!self.overlaps(control));
+        if control.qubit() {
+            let startc = control.raw_start();
+            let start = self.raw_start();
+            let end = self.raw_end();
+            let mut qm = self.qureg.borrow_mut();
+            for i in start..end {
+                qm.cnot(startc, i);
+            }
+            return;
+        } else if control.len() == 2 {
+            let startc = control.raw_start();
+            let start = self.raw_start();
+            let end = self.raw_end();
+            let mut qm = self.qureg.borrow_mut();
+            for i in start..end {
+                qm.toffoli(startc, startc+1, i);
+            }
+            return;
+        } else if control.len() < 1 {
+            panic!("Found zero-length quantum register!");
+        }
+        let mut work = self.add_scratch();
+        let k = control.len();
+        let m = (2 + k) / 2;
+        let mut half1 = control.slice(0, k-m).to_vec();
+        let mut half2 = control.slice(k-m, k).to_vec();
+        for i in 0..self.len() {
+            let mut bit = self.get(i);
+            half1.push(bit);
+            QuRegObject::cnot_half(&mut work, &mut half1[..], &mut half2[..]);
+            bit = half1.pop().unwrap();
+            half1.push(work);
+            QuRegObject::cnot_half(&mut bit, &mut half2[..], &mut half1[..]);
+            work = half1.pop().unwrap();
+            half1.push(bit);
+            QuRegObject::cnot_half(&mut work, &mut half1[..], &mut half2[..]);
+            bit = half1.pop().unwrap();
+            half1.push(work);
+            QuRegObject::cnot_half(&mut bit, &mut half2[..], &mut half1[..]);
+            work = half1.pop().unwrap();
+        }
+        work.remove_scratch();
     }
 
     pub fn toffoli(&mut self, control1: &mut QuRegObject, control2: &mut QuRegObject) {
         assert!(Rc::ptr_eq(&self.qureg, &control1.qureg));
         assert!(Rc::ptr_eq(&self.qureg, &control2.qureg));
         assert!(self.qubit());
+        assert!(control1.qubit());
+        assert!(!self.overlaps(control1));
+        assert!(control2.qubit());
+        assert!(!self.overlaps(control2));
         let start = self.raw_start();
         let start1 = control1.raw_start();
         let start2 = control2.raw_start();
@@ -145,6 +244,8 @@ impl QuRegObject {
     pub fn cphase(&mut self, control: &mut QuRegObject) {
         assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
         assert!(self.qubit());
+        assert!(control.qubit());
+        assert!(!self.overlaps(control));
         let start = self.raw_start();
         let startc = control.raw_start();
         self.qureg.borrow_mut().cond_phase(startc, start);
@@ -153,13 +254,41 @@ impl QuRegObject {
     pub fn cphaseby(&mut self, control: &mut QuRegObject, gamma: f64) {
         assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
         assert!(self.qubit());
+        assert!(control.qubit());
+        assert!(!self.overlaps(control));
         let start = self.raw_start();
         let startc = control.raw_start();
         self.qureg.borrow_mut().cond_phaseby(startc, start, gamma as f32);
     }
 
-    pub fn not(&mut self) {
+    pub fn cflip(&mut self, control: &mut QuRegObject) {
+        self.hadamard();
+        self.cnot(control);
+        self.hadamard();
+    }
+
+    pub fn all(&mut self) -> QuRegObject {
+        let mut scratch = self.add_scratch();
+        scratch.cnot(self);
+        scratch
+    }
+
+    pub fn iall(mut self, orig: &mut QuRegObject) {
+        self.cnot(orig);
+        self.remove_scratch();
+    }
+
+    pub fn not(&mut self) -> QuRegObject {
+        let mut scratch = self.add_scratch();
+        scratch.cnot(self);
+        scratch.sigma_x();
+        scratch
+    }
+
+    pub fn inot(mut self, orig: &mut QuRegObject) {
         self.sigma_x();
+        self.cnot(orig);
+        self.remove_scratch();
     }
 
     pub fn and(&mut self, other: &mut QuRegObject) -> QuRegObject {

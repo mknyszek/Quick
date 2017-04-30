@@ -18,11 +18,25 @@ ftest(sigy);
 ftest(sigz);
 
 var q = |2,0b11>;
-var x = not q[0];
-var y = not q[1];
+var x = q[0];
+var y = q[1];
 print("x = @\n", x);
 print("y = @\n", y);
-with (a = x and y)
+with (a = not (x and y)) {
   print("a = @\n", a);
+}
 print("x = @\n", x);
 print("y = @\n", y);
+
+var qz = |4,0b1110>;
+print("before: @\n", qz);
+cnot(qz[1:#qz], qz[0]);
+print("after: @\n", qz);
+
+var qv = |4, 0b1111>;
+print("before: @\n", qv);
+with (a = all $ qv[1:#qv]) {
+  cflip(a, qv[0]);
+}
+print("after: @\n", qv);
+

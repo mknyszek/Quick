@@ -347,12 +347,12 @@ fn compile_rev_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment
         Expr::Len(ref e) => builtin_rcall!(fns, env, len, 1, e),
         Expr::QAlloc(ref n, ref i) => builtin_rcall!(fns, env, qalloc, 2, n, i),
         Expr::Invoke(ref f) => {
-            compile_expr(f.borrow(), fns, env)?;
+            compile_rev_expr(f.borrow(), fns, env)?;
             fns.current().rcall(0);
         },
         Expr::Apply(ref f, ref a) => {
-            compile_expr(a.borrow(), fns, env)?;
-            compile_expr(f.borrow(), fns, env)?;
+            compile_rev_expr(a.borrow(), fns, env)?;
+            compile_rev_expr(f.borrow(), fns, env)?;
             fns.current().rcall(1);
         },
         _ => panic!("Feature {:?} is not reversible.", expr),

@@ -72,9 +72,9 @@ impl_rdp! {
 
         sexpr = _{
             if_expr | 
+            unary_expr |
             call_expr |
             move_expr |
-            unary_expr |
             alloc_expr |
             block_expr |
             array_expr |

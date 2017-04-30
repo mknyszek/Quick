@@ -16,6 +16,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 macro_rules! invalid_call {
+    ($f:ident) => { panic!("Attempted to call function {} as irreversible.", stringify!($f)) }
+}
+
+macro_rules! invalid_rcall {
     ($f:ident) => { panic!("Attempted to call function {} as reversible.", stringify!($f)) }
 }
 
@@ -27,11 +31,18 @@ macro_rules! irt_entry {
             inv: &|$s, $rs| $i,
         }
     };
+    ($f:ident, $s:ident, $rs:ident, { (reverse) = $r:block (inverse) = $i:block }) => {
+        IRTEntry {
+            irr: &|_| invalid_call!($f),
+            rev: &|$s, $rs| $r,
+            inv: &|$s, $rs| $i,
+        }
+    };
     ($f:ident, $s:ident, $rs:ident, $b:block) => {
         IRTEntry {
             irr: &|$s| $b,
-            rev: &|_, _| invalid_call!($f),
-            inv: &|_, _| invalid_call!($f),
+            rev: &|_, _| invalid_rcall!($f),
+            inv: &|_, _| invalid_rcall!($f),
         }
     };
 }
