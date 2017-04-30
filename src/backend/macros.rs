@@ -50,3 +50,37 @@ macro_rules! builtin_call {
         builtin_call!($fns, $f, $a);
     }};
 }
+
+#[macro_export]
+macro_rules! builtin_rcall {
+    ($fns:ident, $f:ident, $a:expr) => {{
+        match $fns.lookup(string_table::insert(stringify!($f))) {
+            Some(ft) => $fns.current().func(ft),
+            None => return_error!(concat!("Internal error: Undefined function ", stringify!($f))),
+        }
+        $fns.current().rcall($a);
+    }};
+    ($fns:ident, $env:ident, $f:ident, $a:expr, $($e:expr),*) => {{
+        $(
+        compile_rev_expr($e.borrow(), $fns, $env)?;
+        )*
+        builtin_rcall!($fns, $f, $a);
+    }};
+}
+
+#[macro_export]
+macro_rules! builtin_icall {
+    ($fns:ident, $f:ident, $a:expr) => {{
+        match $fns.lookup(string_table::insert(stringify!($f))) {
+            Some(ft) => $fns.current().func(ft),
+            None => return_error!(concat!("Internal error: Undefined function ", stringify!($f))),
+        }
+        $fns.current().icall($a);
+    }};
+    ($fns:ident, $env:ident, $f:ident, $a:expr, $($e:expr),*) => {{
+        builtin_icall!($fns, $f, $a);
+        $(
+        compile_inv_expr($e.borrow(), $fns, $env)?;
+        )*
+    }};
+}

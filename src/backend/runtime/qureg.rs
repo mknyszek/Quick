@@ -31,12 +31,12 @@ pub struct QuRegObject {
 }
 
 impl QuRegObject {
-    pub fn new(s: usize) -> QuRegObject {
+    pub fn new(s: usize, init: i64) -> QuRegObject {
         QuRegObject {
             start: 0,
             end: s,
             scratch: false,
-            qureg: Rc::new(RefCell::new(QuReg::new(s, 0))),
+            qureg: Rc::new(RefCell::new(QuReg::new(s, init as u64))),
         }
     }
 
@@ -56,6 +56,10 @@ impl QuRegObject {
         }
     }
 
+    fn qubit(&self) -> bool {
+        self.len() == 1
+    }
+
     fn scratch(&self) -> usize {
         self.qureg.borrow().scratch()
     }
@@ -67,6 +71,19 @@ impl QuRegObject {
             end: self.scratch(),
             scratch: true,
             qureg: self.qureg.clone(),
+        }
+    }
+
+    fn remove_scratch(self) {
+        if self.scratch {
+            // Scratch reference must be a bit
+            assert!(self.end - self.start == 1);
+            if self.end != self.scratch() {
+                panic!("Scratch qubit {} deleted out of order!", self.start);
+            }
+            if self.qureg.borrow_mut().measure_bit(self.start) {
+                panic!("Scratch qubit {} not properly cleared!", self.start);
+            }
         }
     }
 
@@ -108,27 +125,37 @@ impl QuRegObject {
     qureg_fn_t_g!(phaseby);
 
     pub fn cnot(&mut self, control: &mut QuRegObject) {
-        //assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        assert!(self.qubit());
         let start = self.raw_start();
-        self.qureg.borrow_mut().cnot(control.raw_start(), start);
+        let startc = control.raw_start();
+        self.qureg.borrow_mut().cnot(startc, start);
     }
 
     pub fn toffoli(&mut self, control1: &mut QuRegObject, control2: &mut QuRegObject) {
-        //assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        assert!(Rc::ptr_eq(&self.qureg, &control1.qureg));
+        assert!(Rc::ptr_eq(&self.qureg, &control2.qureg));
+        assert!(self.qubit());
         let start = self.raw_start();
-        self.qureg.borrow_mut().toffoli(control1.raw_start(), control2.raw_start(), start);
+        let start1 = control1.raw_start();
+        let start2 = control2.raw_start();
+        self.qureg.borrow_mut().toffoli(start1, start2, start);
     }
 
     pub fn cphase(&mut self, control: &mut QuRegObject) {
-        //assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        assert!(self.qubit());
         let start = self.raw_start();
-        self.qureg.borrow_mut().cond_phase(control.raw_start(), start);
+        let startc = control.raw_start();
+        self.qureg.borrow_mut().cond_phase(startc, start);
     }
 
     pub fn cphaseby(&mut self, control: &mut QuRegObject, gamma: f64) {
-        //assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        assert!(Rc::ptr_eq(&self.qureg, &control.qureg));
+        assert!(self.qubit());
         let start = self.raw_start();
-        self.qureg.borrow_mut().cond_phaseby(control.raw_start(), start, gamma as f32);
+        let startc = control.raw_start();
+        self.qureg.borrow_mut().cond_phaseby(startc, start, gamma as f32);
     }
 
     pub fn not(&mut self) {
@@ -141,17 +168,24 @@ impl QuRegObject {
         scratch
     }
 
+    pub fn iand(mut self, control1: &mut QuRegObject, control2: &mut QuRegObject) {
+        self.toffoli(control1, control2);
+        self.remove_scratch();
+    } 
+
     pub fn or(&mut self, other: &mut QuRegObject) -> QuRegObject {
         let mut scratch = self.add_scratch();
-        // Use De Morgan's Law to implement reversible OR gate with
-        // Toffoli, which closely resembles "AND"
-        self.not();
-        other.not();
+        scratch.cnot(self);
+        scratch.cnot(other);
         scratch.toffoli(self, other);
-        self.not(); // Reverse NOT on self
-        other.not(); // Reverse NOT on other 
-        scratch.not();
         scratch
+    }
+
+    pub fn ior(mut self, control1: &mut QuRegObject, control2: &mut QuRegObject) {
+        self.toffoli(control1, control2);
+        self.cnot(control2);
+        self.cnot(control1);
+        self.remove_scratch();
     }
 
     pub fn measure(&mut self) -> i64 {
@@ -159,19 +193,9 @@ impl QuRegObject {
         let end = self.raw_end();
         self.qureg.borrow_mut().measure_partial(start..end) as i64
     }
-}
 
-impl Drop for QuRegObject {
-    fn drop(&mut self) {
-        if self.scratch {
-            // Scratch reference must be a bit
-            assert!(self.end - self.start == 1);
-            if self.end != self.scratch() {
-                panic!("Scratch qubit {} deleted out of order!", self.start);
-            }
-            if self.qureg.borrow_mut().measure_bit(self.start) {
-                panic!("Scratch qubit {} not properly cleared!", self.start);
-            }
-        }
+    pub fn to_string(&self) -> String {
+        self.qureg.borrow().to_string().unwrap()
     }
 }
+

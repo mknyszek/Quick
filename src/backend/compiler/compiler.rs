@@ -178,8 +178,9 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             env.pop_scope();
         },
         Stmt::With(id, ref p, ref b) => {
-            let id = env.add_id(id)?;
             compile_rev_expr(p, fns, env)?;
+            env.push_scope();
+            let id = env.add_id(id)?;
             {
                 let func = fns.current();
                 func.put_local(id);
@@ -187,6 +188,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             }
             compile_stmt(b.borrow(), fns, env)?;
             fns.current().get_local(id);
+            env.pop_scope();
             compile_inv_expr(p, fns, env)?;
         },
         Stmt::Return(ref e) => {
@@ -297,7 +299,7 @@ fn compile_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment) ->
         Expr::Put(ref e1, ref e2, ref e3) => builtin_call!(fns, env, put, 3, e1, e2, e3),
         Expr::Slice(ref e1, ref e2, ref e3) => builtin_call!(fns, env, slice, 3, e1, e2, e3),
         Expr::Len(ref e) => builtin_call!(fns, env, len, 1, e),
-        Expr::QAlloc(ref e) => builtin_call!(fns, env, qalloc, 1, e),
+        Expr::QAlloc(ref n, ref i) => builtin_call!(fns, env, qalloc, 2, n, i),
         Expr::Invoke(ref f) => {
             compile_expr(f.borrow(), fns, env)?;
             fns.current().call(0);
@@ -338,6 +340,12 @@ fn compile_rev_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment
             compile_rev_expr(e2.borrow(), fns, env)?;
             fns.current().rop2(op);
         },
+        Expr::Cat(ref e1, ref e2) => builtin_rcall!(fns, env, cat, 2, e1, e2),
+        Expr::Get(ref e1, ref e2) => builtin_rcall!(fns, env, get, 2, e1, e2),
+        Expr::Put(ref e1, ref e2, ref e3) => builtin_rcall!(fns, env, put, 3, e1, e2, e3),
+        Expr::Slice(ref e1, ref e2, ref e3) => builtin_rcall!(fns, env, slice, 3, e1, e2, e3),
+        Expr::Len(ref e) => builtin_rcall!(fns, env, len, 1, e),
+        Expr::QAlloc(ref n, ref i) => builtin_rcall!(fns, env, qalloc, 2, n, i),
         Expr::Invoke(ref f) => {
             compile_expr(f.borrow(), fns, env)?;
             fns.current().rcall(0);
@@ -358,8 +366,8 @@ fn compile_inv_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment
         Expr::Bool(_) => fns.current().discard(),
         Expr::Ref(_) => fns.current().discard(),
         Expr::Call(ref f, ref args) => {
-            compile_inv_expr(f.borrow(), fns, env)?;
             fns.current().icall(args.len());
+            compile_inv_expr(f.borrow(), fns, env)?;
             for a in args.iter().rev() {
                 compile_inv_expr(a, fns, env)?;
             }
@@ -373,13 +381,19 @@ fn compile_inv_expr(expr: &Expr, fns: &mut Functions, env: &mut LocalEnvironment
             compile_inv_expr(e2.borrow(), fns, env)?;
             compile_inv_expr(e1.borrow(), fns, env)?;
         },
+        Expr::Cat(ref e1, ref e2) => builtin_icall!(fns, env, cat, 2, e2, e1),
+        Expr::Get(ref e1, ref e2) => builtin_icall!(fns, env, get, 2, e2, e1),
+        Expr::Put(ref e1, ref e2, ref e3) => builtin_icall!(fns, env, put, 3, e3, e2, e1),
+        Expr::Slice(ref e1, ref e2, ref e3) => builtin_icall!(fns, env, slice, 3, e3, e2, e1),
+        Expr::Len(ref e) => builtin_icall!(fns, env, len, 1, e),
+        Expr::QAlloc(ref n, ref i) => builtin_icall!(fns, env, qalloc, 2, n, i),
         Expr::Invoke(ref f) => {
-            compile_inv_expr(f.borrow(), fns, env)?;
             fns.current().icall(0);
+            compile_inv_expr(f.borrow(), fns, env)?;
         },
         Expr::Apply(ref f, ref a) => {
-            compile_inv_expr(f.borrow(), fns, env)?;
             fns.current().icall(1);
+            compile_inv_expr(f.borrow(), fns, env)?;
             compile_inv_expr(a.borrow(), fns, env)?;
         },
         _ => panic!("Feature {:?} is not reversible.", expr),

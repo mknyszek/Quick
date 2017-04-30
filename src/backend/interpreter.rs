@@ -39,6 +39,7 @@ pub fn interpret(program: Program) {
 
     loop {
         //println!("{}: {:?}\n {:?}, {:?}", pc, program.instructions[pc], stack, a0);
+        //println!("{:?}", aux);
         match program.instructions[pc] {
             Bytecode::Null => {
                 stack.push(a0);
@@ -78,9 +79,15 @@ pub fn interpret(program: Program) {
             },
             Bytecode::Op2(kind, op) => {
                 if let Call::Inverse = kind {
-                    let _ = stack.pop().unwrap();
-                    stack.push(aux.pop().unwrap());
-                    a0 = aux.pop().unwrap();
+                    let t0 = aux.pop().unwrap();
+                    let t1 = aux.pop().unwrap();
+                    match op {
+                        BinOp::And => a0.iand(t0.clone(), t1.clone()),
+                        BinOp::Or => a0.ior(t0.clone(), t1.clone()),
+                        _ => (),
+                    }
+                    a0 = t1;
+                    stack.push(t0);
                 } else {
                     let t0 = stack.pop().unwrap();
                     if let Call::Reverse = kind {
@@ -119,17 +126,36 @@ pub fn interpret(program: Program) {
                 }
             },
             Bytecode::Call(kind, arity) => {
-                let ft = a0.as_func();
+                let ft = if let Call::Inverse = kind {
+                    stack.push(a0);
+                    let al = aux.len();
+                    aux[al-arity-1].clone().as_func()
+                } else {
+                    a0.as_func()
+                };
                 if ft.is_native() {
                     let ref nfe = IRT_TABLE[ft.to_native_index()];
                     assert_eq!(arity, nfe.arity);
                     match kind {
-                        Call::Regular => (nfe.entry.irr)(&mut stack),
-                        Call::Reverse => (nfe.entry.rev)(&mut stack, &mut aux),
-                        Call::Inverse => (nfe.entry.inv)(&mut stack, &mut aux),
+                        Call::Regular => {
+                            (nfe.entry.irr)(&mut stack);
+                            a0 = stack.pop().unwrap();
+                        },
+                        Call::Reverse => {
+                            aux.push(Value::Func(ft));
+                            (nfe.entry.rev)(&mut stack, &mut aux);
+                            a0 = stack.pop().unwrap();
+                        },
+                        Call::Inverse => {
+                            (nfe.entry.inv)(&mut stack, &mut aux);
+                            a0 = aux.pop().unwrap();
+                        },
                     }
-                    a0 = stack.pop().unwrap();
                 } else {
+                    match kind {
+                        Call::Reverse | Call::Inverse => panic!("User functions are not reversible yet."),
+                        _ => (),
+                    }
                     let ref fe = program.call_table[ft.to_call_index()];
                     assert_eq!(arity, fe.arity);
                     for _ in 0..(fe.locals - fe.arity) {

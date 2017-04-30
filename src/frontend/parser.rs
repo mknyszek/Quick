@@ -21,6 +21,7 @@ use util::string_table::{self, StringToken};
 
 use pest::prelude::*;
 
+use std::i64;
 use std::collections::LinkedList;
 
 impl_rdp! {
@@ -83,7 +84,7 @@ impl_rdp! {
             get_expr
         }
 
-        lit   = _{ float | snum | blit }
+        lit   = _{ float | bnum | hnum | snum | blit }
 
         // Operators for matching later
         plus  =  { ["+"] }
@@ -124,7 +125,7 @@ impl_rdp! {
         put_expr    = { caller ~ ["["] ~ expr ~ ["]"] ~ ["="] ~ expr }
         slice_expr  = { caller ~ ["["] ~ expr ~ [":"] ~ expr ~ ["]"] }
         array_expr  = { arr_s ~ (arg ~ ([","] ~ arg)*)? ~ arr_e } 
-        alloc_expr  = { ["|"] ~ expr ~ [">"] }
+        alloc_expr  = { ["|"] ~ expr ~ [","] ~ expr ~ [">"] }
         unary_expr  = { (apply | not | bnot | minus | len) ~ rexpr }
         move_expr   = { ["`"] ~ iden }
 
@@ -137,6 +138,8 @@ impl_rdp! {
         // Literals and identifiers
         iden   = @{ (['a'..'z'] | ['A'..'Z'] | ["_"] | ["@"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
         snum   = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
+        bnum   = @{ ["0b"] ~ ['0'..'1']* }
+        hnum   = @{ ["0x"] ~ (['0'..'9'] | ['a'..'f'] | ['A'..'F'])* }
         float  = @{ ["-"]? ~ ['0'..'9']+ ~ (["."] ~ ['0'..'9']+)? ~ ["f"] }
         blit   = { ["true"] | ["false"] }
         chr    = _{ !(["\""]) ~ any }
@@ -199,6 +202,8 @@ impl_rdp! {
             (&i: iden) => Expr::Ref(string_table::insert(i)),
             (&blit: blit) => Expr::Bool(blit.parse::<bool>().unwrap()),
             (&num: snum) => Expr::Int(num.parse::<i64>().unwrap()),
+            (&num: bnum) => Expr::Int(i64::from_str_radix(&num[2..], 2).unwrap()),
+            (&num: hnum) => Expr::Int(i64::from_str_radix(&num[2..], 16).unwrap()),
             (&num: float) => {
                 // Truncate suffix "f" before parse
                 let num_len = num.len();
@@ -207,8 +212,8 @@ impl_rdp! {
             (_: if_expr, pred: _expr(), then: _expr(), other: _expr()) => {
                 Expr::If(Box::new(pred), Box::new(then), Box::new(other))
             },
-            (_: alloc_expr, n: _expr()) => {
-                Expr::QAlloc(Box::new(n))
+            (_: alloc_expr, n: _expr(), i: _expr()) => {
+                Expr::QAlloc(Box::new(n), Box::new(i))
             },
             (_: block_expr, _: blk_s, stmts: _stmt_list(), result: _expr(), _: blk_e) => {
                 Expr::Block(stmts, Box::new(result))

@@ -57,7 +57,7 @@ pub enum Expr {
     Put(Bxpr, Bxpr, Bxpr),
     Slice(Bxpr, Bxpr, Bxpr),
     Len(Bxpr),
-    QAlloc(Bxpr),
+    QAlloc(Bxpr, Bxpr),
     Apply(Bxpr, Bxpr),
     Invoke(Bxpr),
 }

@@ -87,17 +87,55 @@ impl Value {
     cmp_method!(eq);
     cmp_method!(ne);
 
-    pub fn and(self, other: Value) -> Value {
+    pub fn and(mut self, mut other: Value) -> Value { 
+        if let Value::QuReg(ref mut q1) = self {
+            if let Value::QuReg(ref mut q2) = other {
+                return Value::QuReg(q1.and(q2));
+            }
+        }
         Value::Bool(self.as_bool() && other.as_bool())
     }
 
-    pub fn or(self, other: Value) -> Value {
+    pub fn or(mut self, mut other: Value) -> Value {
+        if let Value::QuReg(ref mut q1) = self {
+            if let Value::QuReg(ref mut q2) = other {
+                return Value::QuReg(q1.or(q2));
+            }
+        }
         Value::Bool(self.as_bool() || other.as_bool())
+    }
+
+    pub fn iand(self, mut other1: Value, mut other2: Value) {
+        if let Value::QuReg(q) = self {
+            if let Value::QuReg(ref mut q1) = other1 {
+                if let Value::QuReg(ref mut q2) = other2 {
+                    q.iand(q1, q2);
+                    return;
+                }
+            }
+        } else {
+            // checks to make sure that we only have an bool here, otherwise
+            self.as_bool();
+        }
+    }
+
+    pub fn ior(self, mut other1: Value, mut other2: Value) {
+        if let Value::QuReg(q) = self {
+            if let Value::QuReg(ref mut q1) = other1 {
+                if let Value::QuReg(ref mut q2) = other2 {
+                    q.ior(q1, q2);
+                    return;
+                }
+            }
+        } else {
+            // checks to make sure that we only have an bool here, otherwise
+            self.as_bool(); 
+        }
     }
 
     pub fn band(self, other: Value) -> Value {
         Value::Int(self.as_int() & other.as_int())
-    }
+    } 
 
     pub fn bor(self, other: Value) -> Value {
         Value::Int(self.as_int() | other.as_int())
@@ -131,17 +169,18 @@ impl Value {
 
     pub fn len(self) -> Value {
         match self {
+            Value::Int(_) => Value::Int(64),
             Value::Array(a) => Value::Int(a.len() as i64),
             Value::QuReg(q) => Value::Int(q.len() as i64),
             _ => panic!("Length operation not available for {:?}", &self),
         }
     }
 
-    pub fn qalloc(self) -> Value {
+    pub fn qalloc(self, init: Value) -> Value {
         match self {
             Value::Int(v) => {
                 assert!(v > 0);
-                Value::QuReg(QuRegObject::new(v as usize))
+                Value::QuReg(QuRegObject::new(v as usize, init.as_int()))
             },
             _ => panic!("Must use an integer to allocate a quantum register!"),
         }
@@ -176,8 +215,6 @@ impl Value {
         }
     }
 
-    // TODO: Improve error message when more than one strong reference
-    // is found on self or other.
     pub fn cat(self, other: Value) -> Value {
         if let Value::Array(mut v) = self {
             v.push_back(other);
@@ -241,6 +278,7 @@ impl Value {
             Value::Int(v) => v.to_string(),
             Value::Float(v) => v.to_string(),
             Value::Array(v) => v.to_string(),
+            Value::QuReg(v) => v.to_string(),
             _ => panic!("String representation not available for {:?}", &self),
         }
     }

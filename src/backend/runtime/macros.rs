@@ -168,10 +168,34 @@ macro_rules! qureg_irt_fn_t {
 }
 
 #[macro_export]
+macro_rules! qureg_irt_rev_fn_t {
+    ($stack:ident, $aux:ident, $f:ident) => {
+        let s = $stack.pop().unwrap();
+        $aux.push(s.clone());
+        match s {
+            Value::QuReg(mut q) => { q.$f(); $stack.push(Value::QuReg(q)); },
+            _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! qureg_irt_inv_fn_t {
+    ($stack:ident, $aux:ident, $f:ident) => {
+        let s = $stack.pop().unwrap();
+        match s {
+            Value::QuReg(mut q) => q.$f(),
+            _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
+        }
+        $stack.push($aux.pop().unwrap());
+    }
+}
+
+#[macro_export]
 macro_rules! qureg_irt_fn_t_g {
     ($stack:ident, $f:ident) => {
         let g = $stack.pop().unwrap();
-        let s = $stack.pop().unwrap();
+        let s = $stack.pop().unwrap(); 
         match s {
             Value::QuReg(mut q) => { q.$f(g.as_float()); $stack.push(Value::QuReg(q)); },
             _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
@@ -182,12 +206,13 @@ macro_rules! qureg_irt_fn_t_g {
 #[macro_export]
 macro_rules! qureg_irt_rev_fn_t_g {
     ($stack:ident, $aux:ident, $f:ident) => {
-        let g = $stack.pop().unwrap().as_float();
+        let g = $stack.pop().unwrap();
         let s = $stack.pop().unwrap();
+        $aux.push(s.clone());
+        $aux.push(g.clone());
         match s {
             Value::QuReg(mut q) => {
-                q.$f(g);
-                $aux.push(Value::Float(g));
+                q.$f(g.as_float());
                 $stack.push(Value::QuReg(q));
             },
             _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
@@ -198,10 +223,12 @@ macro_rules! qureg_irt_rev_fn_t_g {
 #[macro_export]
 macro_rules! qureg_irt_inv_fn_t_g {
     ($stack:ident, $aux:ident, $f:ident) => {
-        let g = $aux.pop().unwrap().as_float();
+        let g = $aux.pop().unwrap();
         let s = $stack.pop().unwrap();
+        $stack.push(s.clone());
+        $stack.push(g.clone());
         match s {
-            Value::QuReg(mut q) => { q.$f(-g); $stack.push(Value::QuReg(q)); },
+            Value::QuReg(mut q) => { q.$f(-g.as_float()); $stack.push(Value::QuReg(q)); },
             _ => panic!(concat!(stringify!($f), " only available on quantum registers and bits.")),
         }
     }

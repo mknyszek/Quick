@@ -52,8 +52,28 @@ irt_table! {
 
     fn[stack, aux] put(3) {
         (regular) = { simple_irt_fn!(stack, put, i, e);  }
-        (reverse) = { simple_irt_rev_fn!(stack, aux, put, i, e); }
-        (inverse) = { simple_irt_inv_fn!(stack, aux, put, i, e); }
+        (reverse) = {
+            let e = stack.pop().unwrap();
+            let i = stack.pop().unwrap();
+            let s = stack.pop().unwrap();
+            let old_e = s.clone().get(i.clone());
+            aux.push(e.clone());
+            aux.push(i.clone());
+            aux.push(s.clone());
+            aux.push(old_e);
+            stack.push(s.put(i, e));
+        }
+        (inverse) = {
+            let _ = stack.pop().unwrap(); 
+            let old_e = aux.pop().unwrap();
+            let e = aux.pop().unwrap();
+            let i = aux.pop().unwrap();
+            let s = aux.pop().unwrap();
+            s.clone().put(i.clone(), old_e);
+            stack.push(s);
+            stack.push(i);
+            stack.push(e);
+        }
     }
 
     fn[stack, aux] cat(2) {
@@ -62,10 +82,10 @@ irt_table! {
         (inverse) = { simple_irt_inv_fn!(stack, aux, cat, s2); }
     }
 
-    fn[stack, aux] qalloc(1) {
-        (regular) = { simple_irt_fn!(stack, qalloc);  }
-        (reverse) = { simple_irt_rev_fn!(stack, aux, qalloc); }
-        (inverse) = { simple_irt_inv_fn!(stack, aux, qalloc); }
+    fn[stack, aux] qalloc(2) {
+        (regular) = { simple_irt_fn!(stack, qalloc, i);  }
+        (reverse) = { simple_irt_rev_fn!(stack, aux, qalloc, i); }
+        (inverse) = { simple_irt_inv_fn!(stack, aux, qalloc, i); }
     }
 
     fn[stack, _aux] ceil(1) { math_irt_fn!(stack, ceil); }
@@ -97,28 +117,28 @@ irt_table! {
         stack.push(Value::Float(f64::consts::E));
     } 
 
-    fn[stack, _aux] hadamard(1) {
+    fn[stack, aux] hadamard(1) {
         (regular) = { qureg_irt_fn_t!(stack, hadamard); }
-        (reverse) = { qureg_irt_fn_t!(stack, hadamard); }
-        (inverse) = { qureg_irt_fn_t!(stack, hadamard); }
+        (reverse) = { qureg_irt_rev_fn_t!(stack, aux, hadamard); }
+        (inverse) = { qureg_irt_inv_fn_t!(stack, aux, hadamard); }
     }
 
-    fn[stack, _aux] sigx(1) {
+    fn[stack, aux] sigx(1) {
         (regular) = { qureg_irt_fn_t!(stack, sigma_x); }
-        (reverse) = { qureg_irt_fn_t!(stack, sigma_x); }
-        (inverse) = { qureg_irt_fn_t!(stack, sigma_x); }
+        (reverse) = { qureg_irt_rev_fn_t!(stack, aux, sigma_x); }
+        (inverse) = { qureg_irt_inv_fn_t!(stack, aux, sigma_x); }
     }
 
-    fn[stack, _aux] sigy(1) {
+    fn[stack, aux] sigy(1) {
         (regular) = { qureg_irt_fn_t!(stack, sigma_y); }
-        (reverse) = { qureg_irt_fn_t!(stack, sigma_y); }
-        (inverse) = { qureg_irt_fn_t!(stack, sigma_y); }
+        (reverse) = { qureg_irt_rev_fn_t!(stack, aux, sigma_y); }
+        (inverse) = { qureg_irt_inv_fn_t!(stack, aux, sigma_y); }
     }
 
-    fn[stack, _aux] sigz(1) {
+    fn[stack, aux] sigz(1) {
         (regular) = { qureg_irt_fn_t!(stack, sigma_z); }
-        (reverse) = { qureg_irt_fn_t!(stack, sigma_z); }
-        (inverse) = { qureg_irt_fn_t!(stack, sigma_z); }
+        (reverse) = { qureg_irt_rev_fn_t!(stack, aux, sigma_z); }
+        (inverse) = { qureg_irt_inv_fn_t!(stack, aux, sigma_z); }
     }
 
     fn[stack, aux] rx(2) { 
