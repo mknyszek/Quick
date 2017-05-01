@@ -60,7 +60,8 @@ impl FunctionToken {
 pub struct FunctionEntry {
     pub addr: usize,
     pub arity: usize,
-    pub locals: usize
+    pub locals: usize,
+    pub ioffset: Option<usize>
 }
 
 #[derive(Clone, Copy, Debug)]

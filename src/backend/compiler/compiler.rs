@@ -55,6 +55,35 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             }
             fns.pop_func();
         },
+        Stmt::DefRFunc(name, ref params, ref b) => {
+            fns.push_func(name, params.len())?;
+            {
+                let mut new_env = LocalEnvironment::new();
+                for p in params.iter() {
+                    new_env.add_id(*p)?;
+                }
+                compile_rev_expr(b, fns, &mut new_env)?;
+                {
+                    let new_func = fns.current();
+                    new_func.return_(new_env.locals());
+                    new_func.set_locals(new_env.locals());
+                }
+            }
+            fns.current().set_inverse();
+            {
+                let mut new_env = LocalEnvironment::new();
+                for p in params.iter() {
+                    new_env.add_id(*p)?;
+                }
+                compile_inv_expr(b, fns, &mut new_env)?;
+                {
+                    let new_func = fns.current();
+                    new_func.return_(new_env.locals());
+                    assert_eq!(new_env.locals(), new_func.locals());
+                }
+            }
+            fns.pop_func();
+        },
         Stmt::DefVar(name, ref e) => {
             compile_expr(e, fns, env)?;
             let offset = env.add_id(name)?;
@@ -89,6 +118,38 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 let func = fns.current();
                 func.jump(start_loop);
                 func.bind(end_loop);
+            }
+        },
+        Stmt::If(ref p, ref t, ref e) => {
+            let other;
+            let done;
+            {
+                let func = fns.current();
+                other = func.label();
+                done = func.label();
+            }
+            compile_expr(p.borrow(), fns, env)?;
+            {
+                let func = fns.current();
+                func.op1(UnOp::Not);
+                func.branch(other);
+            }
+            compile_stmt(t.borrow(), fns, env)?;
+            if let Some(ref e) = *e {
+                {
+                    let func = fns.current();
+                    func.jump(done);
+                    func.bind(other);
+                }
+                compile_stmt(e.borrow(), fns, env)?;
+                {
+                    let func = fns.current();
+                    func.bind(done);
+                }
+            } else {
+                let func = fns.current();
+                func.bind(other);
+                func.bind(done);
             }
         },
         Stmt::ForEach(id, ref e, ref b) => {
@@ -158,17 +219,16 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 func.put_local(end);
                 func.op2(BinOp::Ge);
                 func.branch(end_loop);
-
-                func.bind(start_loop);
+                func.bind(start_loop); 
+            }
+            compile_stmt(b.borrow(), fns, env)?;
+            {
+                let func = fns.current();
                 func.get_local(id);
                 func.int(1);
                 func.op2(BinOp::Add);
                 func.put_local(id);
                 func.discard();
-            }
-            compile_stmt(b.borrow(), fns, env)?;
-            {
-                let func = fns.current();
                 func.get_local(id);
                 func.get_local(end);
                 func.op2(BinOp::Lt);

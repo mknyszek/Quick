@@ -43,6 +43,7 @@ fn print_line_from_pos(program: &String, pos: usize) {
 }
 
 fn main() {
+    libquantum::reseed();
     let mut buffer = String::new();
     let _ = io::stdin().read_to_string(&mut buffer).unwrap();
     let mut parser = frontend::parser::Rdp::new(StringInput::new(buffer.as_str()));

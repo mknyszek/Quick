@@ -14,10 +14,18 @@ func bye() {
   print("Goodbye for now world\n"); false
 }
 
+func test(a, b) {
+  func test1(a, b, c) {
+    print("@\n", a + b + c);
+    false
+  }
+  test1(a, b, 1)
+}
+
 var funcs = hi >< bye;
 (funcs[0])();
 var x = what;
 x $ 10;
 (funcs[1])();
 
-
+test(3, 2);

@@ -1,4 +1,4 @@
-# QScript
+# Quick Programming Language
 
 A prototype quantum scripting language, complete with a simple bytecode-based interpreter.
 

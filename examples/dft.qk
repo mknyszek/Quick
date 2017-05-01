@@ -1,0 +1,17 @@
+func reverse(q) {
+  for (i in 0..#q/2-1)
+    swap(q[i], q[#q-i-1]);
+  q
+}
+
+func dft(q) {
+  var n = #q;
+  for (i in 1..n) {
+    for (j in 1..n) {
+      with (c = q[n-i] and q[n-j])
+        cphaseby(c, $pi / (2^^(i-j)));
+    }
+    hadamard $ q[n-i];
+  }
+  reverse $ q
+}

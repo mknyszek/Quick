@@ -1,0 +1,40 @@
+func teleport(state, bell_p, bell_n) {
+  for (i in 0..#state) {
+    cnot(state[i], bell_p[i]);
+    hadamard $ state[i];
+  }
+  for (i in 0..#state) {
+    if (measure $ bell_p[i]) 
+      sigx $ bell_n[i];
+    if (measure $ state[i])
+      sigz $ bell_n[i];
+  }
+  false
+}
+
+func bell(bit0, bit1) {
+  hadamard $ bit0;
+  cnot(bit0, bit1);
+  false
+}
+
+var reg = |6,0>;
+var state = reg[0:2];
+var bell_p = reg[2:4];
+var bell_n = reg[4:6];
+
+// prepare some interesting state
+hadamard $ state;
+phaseby(state, $pi/8);
+cnot(state[0], state[1]);
+
+print("before: @\n", reg);
+
+// prepare bell state
+bell(bell_p[0], bell_n[0]);
+bell(bell_p[1], bell_n[1]);
+
+// teleport
+teleport(state, bell_p, bell_n);
+
+print("after: @\n", reg);

@@ -25,9 +25,11 @@ pub type Ast = LinkedList<Stmt>;
 #[derive(Debug)]
 pub enum Stmt {
     DefFunc(StringToken, LinkedList<StringToken>, Expr),
+    DefRFunc(StringToken, LinkedList<StringToken>, Expr),
     DefVar(StringToken, Expr),
     Block(LinkedList<Stmt>),
     While(Expr, Box<Stmt>),
+    If(Expr, Box<Stmt>, Option<Box<Stmt>>),
     ForEach(StringToken, Expr, Box<Stmt>),
     ForLoop(StringToken, Expr, Expr, Box<Stmt>),
     With(StringToken, Expr, Box<Stmt>),

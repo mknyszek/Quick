@@ -31,6 +31,7 @@ pub struct Function {
     labels: Vec<Option<usize>>,
     arity: usize,
     locals: usize,
+    inverse: Option<usize>
 }
 
 impl Function {
@@ -40,6 +41,7 @@ impl Function {
             labels: Vec::new(),
             arity: arity,
             locals: 0,
+            inverse: None
         }
     }
 
@@ -80,6 +82,14 @@ impl Function {
 
     pub fn set_locals(&mut self, l: usize) {
         self.locals = l;
+    }
+
+    pub fn set_inverse(&mut self) {
+        self.inverse = Some(self.bc.len());
+    }
+
+    pub fn inverse(&self) -> Option<usize> {
+        self.inverse
     }
 
     pub fn locals(&self) -> usize {
@@ -174,8 +184,14 @@ impl Functions {
             let start = instructions.len();
             let arity = func.arity();
             let locals = func.locals();
+            let ioffset = func.inverse();
             instructions.extend(func.resolve().into_iter());
-            call_table.push(FunctionEntry { addr: start, arity: arity, locals: locals });
+            call_table.push(FunctionEntry {
+                addr: start,
+                arity: arity,
+                locals: locals,
+                ioffset: ioffset
+            });
         }
         Program { instructions: instructions, call_table: call_table }
     }

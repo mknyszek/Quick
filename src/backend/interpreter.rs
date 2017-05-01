@@ -161,20 +161,31 @@ pub fn interpret(program: Program) {
                         },
                     }
                 } else {
-                    match kind {
-                        Call::Reverse | Call::Inverse => panic!("User functions are not reversible yet."),
-                        _ => (),
-                    }
                     let ref fe = program.call_table[ft.to_call_index()];
                     assert_eq!(arity, fe.arity);
+                    if fe.ioffset.is_some() {
+                        assert_eq!(fe.locals - fe.arity, 0);
+                    }
                     for _ in 0..(fe.locals - fe.arity) {
                         stack.push(Value::Null);
-                    }
+                    } 
                     let old_fp = fp;
                     fp = stack.len() - fe.locals;
                     stack.push(Value::Addr(pc + 1));
                     a0 = Value::Addr(old_fp);
-                    pc = fe.addr;
+                    match kind {
+                        Call::Regular => {
+                            assert!(fe.ioffset.is_none());
+                            pc = fe.addr;
+                        },
+                        Call::Reverse => {
+                            assert!(fe.ioffset.is_some());
+                            pc = fe.addr;
+                        },
+                        Call::Inverse => {
+                            pc = fe.addr + fe.ioffset.unwrap();
+                        },
+                    }
                     continue;
                 }
             },

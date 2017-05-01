@@ -31,9 +31,12 @@ impl_rdp! {
 
         // Statements end with semi-colon
         stmt = {
+            rfunc_stmt |
             func_stmt |
             fore_stmt |
             forl_stmt |
+            ife_stmt |
+            if_stmt |
             while_stmt |
             var_stmt |
             print_stmt |
@@ -44,10 +47,13 @@ impl_rdp! {
         }
 
         // Types of statements
+        rfunc_stmt = { ["func"] ~ ["*"] ~ iden ~ iden_list ~ (expr ~ [";"] | block_expr) }
         func_stmt  = { ["func"] ~ iden ~ iden_list ~ (expr ~ [";"] | block_expr) }
         var_stmt   = { ["var"] ~ iden ~ ["="] ~ expr ~ [";"] }
         block_stmt = { blk_s ~ stmt* ~ blk_e }
         while_stmt = { ["while"] ~ ["("] ~ expr ~ [")"] ~ stmt }
+        ife_stmt   = { ["if"] ~ ["("] ~ expr ~ [")"] ~ stmt ~ ["else"] ~ stmt }
+        if_stmt    = { ["if"] ~ ["("] ~ expr ~ [")"] ~ stmt }
         fore_stmt  = { ["foreach"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [")"] ~ stmt }
         forl_stmt  = { ["for"] ~ ["("] ~ iden ~ ["in"] ~ expr ~ [".."] ~ expr ~ [")"] ~ stmt }
         expr_stmt  = { expr ~ [";"] }
@@ -136,7 +142,7 @@ impl_rdp! {
         caller    = _{ array_expr | block_expr | move_expr | ["("] ~ expr ~ [")"] | lit | iden }
 
         // Literals and identifiers
-        iden   = @{ (['a'..'z'] | ['A'..'Z'] | ["_"] | ["@"]) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
+        iden   = @{ (['a'..'z'] | ['A'..'Z'] | ["_"] ) ~ (['a'..'z'] | ['A'..'Z'] | ["_"] | ['0'..'9'])* } 
         snum   = @{ ["0"] | (["-"]? ~ ['1'..'9'] ~ ['0'..'9']*) }
         bnum   = @{ ["0b"] ~ ['0'..'1']* }
         hnum   = @{ ["0x"] ~ (['0'..'9'] | ['a'..'f'] | ['A'..'F'])* }
@@ -167,6 +173,9 @@ impl_rdp! {
             () => LinkedList::new()
         }
         _stmt(&self) -> Stmt {
+            (_: rfunc_stmt, &name: iden, params: _iden_list(), body: _expr()) => {
+                Stmt::DefRFunc(string_table::insert(name), params, body)
+            },
             (_: func_stmt, &name: iden, params: _iden_list(), body: _expr()) => {
                 Stmt::DefFunc(string_table::insert(name), params, body)
             },
@@ -175,6 +184,10 @@ impl_rdp! {
                 Stmt::Block(stmts)
             },
             (_: while_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::While(pred, Box::new(body)),
+            (_: if_stmt, pred: _expr(), _: stmt, body: _stmt()) => Stmt::If(pred, Box::new(body), None),
+            (_: ife_stmt, pred: _expr(), _: stmt, body: _stmt(), _: stmt, other: _stmt()) => {
+                Stmt::If(pred, Box::new(body), Some(Box::new(other)))
+            },
             (_: fore_stmt, &name: iden, iter: _expr(), _: stmt, body: _stmt()) => {
                 Stmt::ForEach(string_table::insert(name), iter, Box::new(body))
             },
