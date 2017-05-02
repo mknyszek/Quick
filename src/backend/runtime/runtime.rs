@@ -186,11 +186,33 @@ irt_table! {
         }
     }
 
+    fn[stack, aux] any(1) {
+        (reverse) = {
+            let mut t = stack.pop().unwrap().as_qureg();
+            let s = t.any();
+            aux.push(Value::QuReg(t));
+            stack.push(Value::QuReg(s));
+        }
+        (inverse) = {
+            let s = stack.pop().unwrap().as_qureg();
+            let mut t = aux.pop().unwrap().as_qureg();
+            s.iany(&mut t);
+            stack.push(Value::QuReg(t));
+        }
+    }
+
     fn[stack, _aux] cnot(2) {
         let mut t = stack.pop().unwrap().as_qureg();
         let mut c = stack.pop().unwrap().as_qureg();
         t.cnot(&mut c);
         stack.push(Value::QuReg(t));
+    }
+
+    fn[stack, _aux] swap(2) {
+        let mut t1 = stack.pop().unwrap().as_qureg();
+        let mut t2 = stack.pop().unwrap().as_qureg();
+        t1.swap(&mut t2);
+        stack.push(Value::QuReg(t1));
     }
 
     fn[stack, _aux] cflip(2) {

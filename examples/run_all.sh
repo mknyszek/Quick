@@ -12,3 +12,4 @@ run_example r-fib
 run_example arrays
 run_example quantum
 run_example teleport
+run_example dft

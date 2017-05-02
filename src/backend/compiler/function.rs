@@ -62,7 +62,7 @@ impl Function {
     pub fn call(&mut self, arity: usize)     { self.bc.push(Bytecode::Call(Call::Regular, arity)); } 
     pub fn rcall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Reverse, arity)); } 
     pub fn icall(&mut self, arity: usize)    { self.bc.push(Bytecode::Call(Call::Inverse, arity)); } 
-    pub fn return_(&mut self, o: usize)      { self.bc.push(Bytecode::Return(o));          }
+    pub fn return_(&mut self)                { self.bc.push(Bytecode::Return);             }
     pub fn discard(&mut self)                { self.bc.push(Bytecode::Discard);            }
     pub fn put_local(&mut self, o: usize)    { self.bc.push(Bytecode::PutLocal(o));        }
     pub fn get_local(&mut self, o: usize)    { self.bc.push(Bytecode::GetLocal(o));        }

@@ -267,6 +267,14 @@ impl QuRegObject {
         self.hadamard();
     }
 
+    pub fn swap(&mut self, control: &mut QuRegObject) {
+        assert!(self.qubit());
+        assert!(control.qubit());
+        self.cnot(control);
+        control.cnot(self);
+        self.cnot(control);
+    }
+
     pub fn all(&mut self) -> QuRegObject {
         let mut scratch = self.add_scratch();
         scratch.cnot(self);
@@ -275,6 +283,23 @@ impl QuRegObject {
 
     pub fn iall(mut self, orig: &mut QuRegObject) {
         self.cnot(orig);
+        self.remove_scratch();
+    }
+
+    pub fn any(&mut self) -> QuRegObject {
+        let mut scratch = self.add_scratch();
+        self.sigma_x();
+        scratch.cnot(self);
+        self.sigma_x();
+        scratch.sigma_x();
+        scratch
+    }
+
+    pub fn iany(mut self, orig: &mut QuRegObject) {
+        self.sigma_x();
+        orig.sigma_x();
+        self.cnot(orig);
+        orig.sigma_x();
         self.remove_scratch();
     }
 

@@ -33,7 +33,7 @@ pub fn compile(ast: &Ast) -> Result<Program, String> {
     }
     {
         let top_func = fns.current();
-        top_func.return_(env.locals());
+        top_func.return_();
         top_func.set_locals(env.locals());
     }
     Ok(fns.to_program())
@@ -50,7 +50,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
             compile_expr(b, fns, &mut new_env)?;
             {
                 let new_func = fns.current();
-                new_func.return_(new_env.locals());
+                new_func.return_();
                 new_func.set_locals(new_env.locals());
             }
             fns.pop_func();
@@ -65,7 +65,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 compile_rev_expr(b, fns, &mut new_env)?;
                 {
                     let new_func = fns.current();
-                    new_func.return_(new_env.locals());
+                    new_func.return_();
                     new_func.set_locals(new_env.locals());
                 }
             }
@@ -78,7 +78,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
                 compile_inv_expr(b, fns, &mut new_env)?;
                 {
                     let new_func = fns.current();
-                    new_func.return_(new_env.locals());
+                    new_func.return_();
                     assert_eq!(new_env.locals(), new_func.locals());
                 }
             }
@@ -253,7 +253,7 @@ fn compile_stmt(stmt: &Stmt, fns: &mut Functions, env: &mut LocalEnvironment) ->
         },
         Stmt::Return(ref e) => {
             compile_expr(e, fns, env)?;
-            fns.current().return_(env.locals());
+            fns.current().return_();
         },
         Stmt::Expr(ref e) => {
             compile_expr(e, fns, env)?;

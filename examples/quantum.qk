@@ -39,4 +39,3 @@ with (a = all $ qv[1:#qv]) {
   cflip(a, qv[0]);
 }
 print("after: @\n", qv);
-

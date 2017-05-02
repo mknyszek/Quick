@@ -190,12 +190,13 @@ pub fn interpret(program: Program) {
                 }
             },
             Bytecode::Discard => a0 = stack.pop().unwrap(),
-            Bytecode::Return(locals) => {
+            Bytecode::Return => {
+                //assert_eq!(aux.len(), 0);
                 if fp == 0 { return; }
+                let old_fp = fp;
                 fp = stack.pop().unwrap().as_addr();
                 pc = stack.pop().unwrap().as_addr();
-                let sp = stack.len();
-                stack.truncate(sp - locals);
+                stack.truncate(old_fp);
                 continue;
             },
             Bytecode::PutLocal(index) => stack[fp + index] = a0.clone(),

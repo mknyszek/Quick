@@ -29,3 +29,10 @@ x $ 10;
 (funcs[1])();
 
 test(3, 2);
+
+func r(n) {
+  if (n == 1) ret 10;
+  r(n-1)
+}
+
+print("@\n", r(10));

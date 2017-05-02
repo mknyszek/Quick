@@ -1,17 +1,41 @@
+// Reverse qubit order
 func reverse(q) {
   for (i in 0..#q/2-1)
     swap(q[i], q[#q-i-1]);
   q
 }
 
+// Coppersmith approximate DFT
 func dft(q) {
   var n = #q;
   for (i in 1..n) {
-    for (j in 1..n) {
+    for (j in 1..i-1) {
       with (c = q[n-i] and q[n-j])
-        cphaseby(c, $pi / (2^^(i-j)));
+        phaseby(c, $pi / (2^^(i-j)));
     }
     hadamard $ q[n-i];
   }
   reverse $ q
 }
+
+// Actual QFT
+func qft(q) {
+  func rqft(q) {
+    var n = #q;
+    if (n == 1) {
+      ret hadamard $ q;
+    }
+    rqft(q[0:n-1]);
+    for (i in 0..n-1) {
+      cphaseby(q[n-1], q[i], $pi / (2^^(n-1-i)));
+    }
+    hadamard $ q[n-1];
+    q
+  }
+  reverse $ rqft(q)
+}
+
+var x = |2, 0>;
+print("@\n", x);
+qft $ x;
+print("@\n", x);

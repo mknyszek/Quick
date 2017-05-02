@@ -71,14 +71,11 @@ macro_rules! builtin_rcall {
 #[macro_export]
 macro_rules! builtin_icall {
     ($fns:ident, $f:ident, $a:expr) => {{
-        match $fns.lookup(string_table::insert(stringify!($f))) {
-            Some(ft) => $fns.current().func(ft),
-            None => return_error!(concat!("Internal error: Undefined function ", stringify!($f))),
-        }
         $fns.current().icall($a);
     }};
     ($fns:ident, $env:ident, $f:ident, $a:expr, $($e:expr),*) => {{
         builtin_icall!($fns, $f, $a);
+        $fns.current().discard(); // Discard function at the top
         $(
         compile_inv_expr($e.borrow(), $fns, $env)?;
         )*

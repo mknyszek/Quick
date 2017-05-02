@@ -11,4 +11,15 @@ func fib(n) {
   b
 }
 
-print("@\n", fib(30));
+func fib2(n) {
+  var a = 1;
+  var b = 0;
+  for (_ in 0..n) {
+    var t = b;
+    b = a;
+    a = a + t;
+  }
+  b
+}
+
+print("@\n", fib2(30));

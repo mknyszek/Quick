@@ -83,7 +83,7 @@ pub enum Bytecode {
     Op1(Call, UnOp),
     Call(Call, usize),
     Discard,
-    Return(usize),
+    Return,
     PutLocal(usize),
     GetLocal(usize),
     Jump(isize),
