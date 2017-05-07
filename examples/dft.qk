@@ -35,7 +35,7 @@ func qft(q) {
   reverse $ rqft(q)
 }
 
-var x = |2, 0>;
+var x = |2, 0b11>;
 print("@\n", x);
 qft $ x;
 print("@\n", x);
